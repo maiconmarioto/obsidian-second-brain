@@ -1,6 +1,6 @@
 ---
 name: obsidian-brain
-description: Use Obsidian CLI as the primary interface to consult and update the engineering memory vault `obsidian-second-brain`, regardless of the current project directory.
+description: Use Obsidian CLI as the primary interface to consult and update the engineering memory vault `__VAULT_NAME__`, regardless of the current project directory.
 ---
 
 # Obsidian Brain
@@ -11,18 +11,18 @@ Use this skill when the task involves engineering memory, historical context, pr
 - Treat Obsidian as external persistent engineering memory.
 - Use `obsidian` CLI as the primary interface.
 - Do not depend on the current project `cwd` to find memory.
-- Outside the vault, always target the vault explicitly with `vault="obsidian-second-brain"` as the first parameter.
+- Outside the vault, always target the vault explicitly with `vault="__VAULT_NAME__"` as the first parameter.
 - Use direct filesystem reads of the vault only as fallback.
 
 ## Required vault
-- Vault name: `obsidian-second-brain`
-- Vault root: `/Users/maiconmarioto/Documents/obsidian-second-brain`
+- Vault name: `__VAULT_NAME__`
+- Vault root: `__VAULT_ROOT__`
 
 ## First reads
 Before making structural decisions or writing notes, read:
-1. `obsidian vault="obsidian-second-brain" read path="INDEX.md"`
-2. `obsidian vault="obsidian-second-brain" read path="AGENT_PROTOCOL.md"`
-3. `obsidian vault="obsidian-second-brain" read path="04-shared-decisions/0001-vault-structure.md"`
+1. `obsidian vault="__VAULT_NAME__" read path="INDEX.md"`
+2. `obsidian vault="__VAULT_NAME__" read path="AGENT_PROTOCOL.md"`
+3. `obsidian vault="__VAULT_NAME__" read path="04-shared-decisions/0001-vault-structure.md"`
 
 ## Retrieval strategy
 1. Search for relevant context with `obsidian search`.
@@ -35,17 +35,17 @@ Before making structural decisions or writing notes, read:
 When outside the vault, use:
 
 ```bash
-obsidian vault="obsidian-second-brain" search query="payments"
-obsidian vault="obsidian-second-brain" read path="AGENT_PROTOCOL.md"
-obsidian vault="obsidian-second-brain" files folder="01-projects"
-obsidian vault="obsidian-second-brain" folders folder="02-workstreams"
+obsidian vault="__VAULT_NAME__" search query="payments"
+obsidian vault="__VAULT_NAME__" read path="AGENT_PROTOCOL.md"
+obsidian vault="__VAULT_NAME__" files folder="01-projects"
+obsidian vault="__VAULT_NAME__" folders folder="02-workstreams"
 ```
 
 When writing:
 
 ```bash
-obsidian vault="obsidian-second-brain" create path="00-inbox/example.md" content="# Example"
-obsidian vault="obsidian-second-brain" append path="01-projects/my-project/tasks.md" content="- [ ] Next task"
+obsidian vault="__VAULT_NAME__" create path="00-inbox/example.md" content="# Example"
+obsidian vault="__VAULT_NAME__" append path="01-projects/my-project/tasks.md" content="- [ ] Next task"
 ```
 
 ## Classification rules

@@ -10,12 +10,13 @@ status: active
 - Make agents use Obsidian CLI as the primary path to engineering memory.
 
 ## Canonical source
-- [[skills/obsidian-brain/SKILL]]
+- [[skills/obsidian-brain/SKILL.template]]
 
 ## Installation model
-- Source of truth lives inside this vault.
-- Each agent gets a symlink to the same source directory.
-- This avoids drift between three separate copies.
+- Source of truth lives inside this vault as a template.
+- The installer renders a machine-local skill with the correct vault name and vault path.
+- Each selected agent gets a symlink to the rendered local installation.
+- This avoids drift and removes hardcoded machine paths from the versioned source.
 
 ## Why this is effectively always-on
 - The skill is installed globally for the three agents.

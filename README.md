@@ -1,0 +1,116 @@
+# Obsidian Engineering Brain
+
+Structured Obsidian vault for software engineering work across multiple projects, with a shared CLI-first skill for Claude Code, Codex, and OpenCode.
+
+## What this is
+- A versioned Obsidian vault used as persistent engineering memory.
+- Optimized for project-local execution and cross-project workstreams.
+- Designed so agents consult memory through the Obsidian CLI instead of relying on the current repository directory.
+
+## Core ideas
+- `01-projects/` holds local context for a single project, service, repo, or product surface.
+- `02-workstreams/` holds initiatives that affect multiple projects.
+- `03-shared-knowledge/` holds reusable engineering knowledge.
+- `04-shared-decisions/` holds decisions and standards that apply beyond one project.
+- `05-templates/` holds note templates.
+- `06-ops/` holds vault operations, docs, and the canonical skill source.
+
+## Vault structure
+```text
+.
+├── INDEX.md
+├── AGENT_PROTOCOL.md
+├── 00-inbox/
+├── 01-projects/
+├── 02-workstreams/
+├── 03-shared-knowledge/
+├── 04-shared-decisions/
+├── 05-templates/
+└── 06-ops/
+```
+
+## Agent skill
+The shared skill is `obsidian-brain`.
+
+Its job is to make agents:
+- treat Obsidian as external persistent engineering memory
+- use `obsidian` CLI as the primary interface
+- target the vault explicitly outside the vault directory
+- avoid using `cwd` as the mechanism for memory discovery
+
+Canonical source:
+- [06-ops/skills/obsidian-brain/README.md](/Users/maiconmarioto/Documents/obsidian-second-brain/06-ops/skills/obsidian-brain/README.md)
+- [06-ops/skills/obsidian-brain/SKILL.template.md](/Users/maiconmarioto/Documents/obsidian-second-brain/06-ops/skills/obsidian-brain/SKILL.template.md)
+
+## Installer
+The installer renders a machine-local version of the skill and symlinks it into the selected agent directories.
+
+Installer:
+- [06-ops/install-obsidian-brain-skill.sh](/Users/maiconmarioto/Documents/obsidian-second-brain/06-ops/install-obsidian-brain-skill.sh)
+
+### Requirements
+- Obsidian app installed
+- Obsidian CLI installed and configured
+
+### Interactive install
+```bash
+/Users/maiconmarioto/Documents/obsidian-second-brain/06-ops/install-obsidian-brain-skill.sh
+```
+
+The wizard asks for:
+- vault name
+- vault path
+- which agents to install for:
+  - Claude Code
+  - Codex
+  - OpenCode
+
+Agent selection controls:
+- `↑/↓` move
+- `Space` toggles selection
+- `Enter` confirms
+
+### Non-interactive install
+```bash
+/Users/maiconmarioto/Documents/obsidian-second-brain/06-ops/install-obsidian-brain-skill.sh \
+  --vault-name obsidian-second-brain \
+  --vault-root /Users/maiconmarioto/Documents/obsidian-second-brain \
+  --agents claude,codex,opencode \
+  --non-interactive
+```
+
+### Dry run
+Use this to simulate the install without writing files or changing symlinks:
+
+```bash
+/Users/maiconmarioto/Documents/obsidian-second-brain/06-ops/install-obsidian-brain-skill.sh --dry-run
+```
+
+### Rendered local install
+The rendered machine-local skill is stored outside the repository:
+- `~/.local/share/obsidian-brain/current/`
+
+Installer config is stored at:
+- `~/.config/obsidian-brain/config.env`
+
+Global agent symlinks are created only for the agents you select:
+- `~/.claude/skills/obsidian-brain`
+- `~/.codex/skills/obsidian-brain`
+- `~/.config/opencode/skills/obsidian-brain`
+
+Selection is additive:
+- selected agents are installed or updated
+- unselected agents are left untouched
+
+## How to use this brain
+1. Open or keep Obsidian running.
+2. Work inside any repository you want.
+3. Let your agent use `obsidian vault="<vault-name>" ...` to consult memory.
+4. Keep project-local notes in `01-projects/`.
+5. Use `02-workstreams/` when work affects multiple projects.
+6. Promote reusable knowledge and cross-project decisions into shared folders.
+
+## Recommended next steps
+- Create your first real project in `01-projects/`.
+- Create your first real workstream in `02-workstreams/`.
+- Keep `INDEX.md` and `AGENT_PROTOCOL.md` current as the vault evolves.
