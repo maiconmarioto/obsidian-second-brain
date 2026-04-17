@@ -11,6 +11,8 @@ export const DEFAULTS = {
   candidateLimit: 40,
   relatedDepth: 1,
   relatedBoost: 0.18,
+  fullRebuildThresholdRatio: 0.35,
+  fullRebuildThresholdFiles: 25,
   staleDays: {
     project: 14,
     tasks: 7,

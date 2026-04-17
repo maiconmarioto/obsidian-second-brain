@@ -196,6 +196,46 @@ function loadFallbackCandidates(db, filters, config) {
   }));
 }
 
+function loadPinnedCandidates(db, filters, pinnedPaths) {
+  if (!pinnedPaths.length) return [];
+  const params = [...pinnedPaths];
+  const pathPlaceholders = pinnedPaths.map(() => '?').join(', ');
+  const filterSql = buildFilterSql(filters, params);
+  const rows = db
+    .prepare(
+      `
+      SELECT
+        c.id,
+        c.path,
+        c.title,
+        c.heading_path,
+        c.section_heading,
+        c.preview,
+        c.note_type,
+        c.note_status,
+        c.tags_text,
+        c.entities_json,
+        c.mtime_ms,
+        f.aliases_json,
+        f.links_json,
+        f.backlinks_json
+      FROM chunks c
+      JOIN files f ON f.path = c.path
+      WHERE c.path IN (${pathPlaceholders}) ${filterSql}
+      ORDER BY c.path ASC, c.id ASC
+    `,
+    )
+    .all(...params);
+
+  return rows.map((row) => ({
+    ...row,
+    aliases: parseJson(row.aliases_json),
+    links: parseJson(row.links_json),
+    backlinks: parseJson(row.backlinks_json),
+    entities: parseJson(row.entities_json),
+  }));
+}
+
 function buildSeedEntityIndex(graphSpec) {
   const aliasLookup = new Map();
   const entityById = new Map();
@@ -273,6 +313,7 @@ function analyzeQueryIntent(query) {
     asksMarketingSite: hasAnyKeyword(tokens, ['astro', 'marketing', 'official', 'site', 'static', 'whatsapp']),
     asksNextAction: hasAnyKeyword(tokens, ['next', 'passo', 'proximo']),
     asksReleaseInfo: hasAnyKeyword(tokens, ['baseline', 'domain', 'dominio', 'producao', 'production', 'release', 'version']),
+    asksVaultStructure: hasAnyKeyword(tokens, ['conhecimento', 'decisoes', 'estruturado', 'organizado', 'projetos', 'vault', 'workstreams']),
     needsMetadata: hasAnyKeyword(tokens, [
       'active',
       'ativos',
@@ -293,7 +334,7 @@ function analyzeQueryIntent(query) {
     ]),
     prefersCurrentState: hasAnyKeyword(tokens, ['breakage', 'broken', 'quebrado', 'state', 'status', 'typecheck']),
     prefersDecision: hasAnyKeyword(tokens, ['aceitas', 'accepted', 'continuacao', 'decisao', 'decisoes', 'legado', 'rebuild', 'separado']),
-    prefersProtocol: hasAnyKeyword(tokens, ['agent', 'agente', 'editar', 'guardar', 'ler', 'ordem', 'retrieval', 'vault', 'volatile', 'volateis']),
+    prefersProtocol: hasAnyKeyword(tokens, ['agent', 'agente', 'editar', 'guardar', 'ler', 'ordem', 'retrieval', 'volatile', 'volateis']),
     prefersResearch: hasAnyKeyword(tokens, ['copiar', 'landscape', 'market', 'mercado', 'memoria', 'pesquisa', 'recommend', 'research']),
     prefersTasks: hasAnyKeyword(tokens, ['backlog', 'blocked', 'deploy', 'falta', 'next', 'passo', 'proximo', 'queue', 'task', 'tasks', 'validar']),
     prefersTechnical: hasAnyKeyword(tokens, ['api', 'arquitetura', 'astro', 'auth', 'backend', 'banco', 'database', 'fastify', 'infra', 'monorepo', 'nextjs', 'next', 'postgresql', 'prisma', 'stack', 'tanstack', 'technical', 'tecnica', 'trigger', 'typescript']),
@@ -307,11 +348,16 @@ function queryIntentBoost(row, intent) {
 
   if (row.sectionHeading === 'Metadata') {
     if (intent.asksReleaseInfo || intent.asksNextAction) score += 0.022;
+    else if (intent.prefersResearch) score -= 0.05;
     else if (intent.prefersTechnical) score -= 0.02;
     else if (intent.needsMetadata) score += 0.012;
     else score -= 0.012;
   }
   if (intent.asksNextAction && row.noteType === 'project') score += 0.018;
+  if (intent.asksNextAction && row.noteType === 'project' && row.sectionHeading === 'Metadata') score += 0.03;
+  if (intent.asksNextAction && row.noteType === 'context' && heading.includes('stable facts only')) score += 0.016;
+  if (intent.asksNextAction && preview.includes('legado')) score += 0.01;
+  if (intent.asksNextAction && row.noteType === 'tasks' && row.sectionHeading === 'Metadata') score -= 0.02;
   if (intent.prefersTasks && row.noteType === 'tasks') score += 0.03;
   if (intent.prefersTasks && /( now| next| blocked| decision needed)/.test(` ${heading}`)) score += 0.012;
   if (intent.prefersDecision && row.noteType === 'decision') score += 0.026;
@@ -321,9 +367,22 @@ function queryIntentBoost(row, intent) {
   if (intent.prefersProtocol && (row.noteType === 'protocol' || row.path === 'AGENT_PROTOCOL.md')) score += 0.03;
   if (intent.prefersProtocol && (heading.includes('canonical vs volatile') || heading.includes('retrieval order'))) score += 0.03;
   if (intent.prefersResearch && row.noteType === 'research') score += 0.024;
+  if (intent.prefersResearch && row.noteType === 'index') score -= 0.14;
   if (intent.prefersResearch && row.noteType === 'ops') score -= 0.06;
-  if (intent.prefersResearch && heading.includes('what we should copy')) score += 0.03;
+  if (intent.prefersResearch && heading.includes('what we should copy')) score += 0.045;
+  if (intent.prefersResearch && heading.includes('recommended direction for this vault')) score += 0.03;
+  if (intent.prefersResearch && heading.includes('context packs')) score += 0.02;
   if (intent.prefersResearch && heading.includes('core memory')) score += 0.02;
+  if (intent.prefersResearch && row.path === '06-ops/vault-map.md') score -= 0.015;
+  if (intent.asksVaultStructure && row.path === 'INDEX.md') score += 0.045;
+  if (
+    intent.asksVaultStructure &&
+    row.path === 'INDEX.md' &&
+    (heading.includes('navigation') || heading.includes('working rules') || heading.includes('purpose'))
+  ) {
+    score += 0.025;
+  }
+  if (intent.asksVaultStructure && row.path === '06-ops/vault-map.md') score += 0.04;
   if (intent.asksReleaseInfo && row.noteType === 'decision') score += 0.012;
   if (intent.asksReleaseInfo && row.noteType === 'context' && heading.includes('stable facts only')) score += 0.024;
   if (intent.asksReleaseInfo && row.noteType === 'context' && heading.includes('technical shape')) score += 0.014;
@@ -473,6 +532,7 @@ function relatedExpansion(baseResults, fileLookup, relatedDepth = 1, relatedBoos
 
 export async function searchVault(paths, config, filters, graphSpec, query, options = {}) {
   const db = openDatabase(paths.dbFile);
+  const intent = analyzeQueryIntent(query);
   const lexicalCandidates = query.trim()
     ? loadLexicalCandidates(db, query, filters, config)
     : [];
@@ -480,10 +540,17 @@ export async function searchVault(paths, config, filters, graphSpec, query, opti
   const fallbackCandidates = usedLexicalMatches
     ? lexicalCandidates
     : loadFallbackCandidates(db, filters, config);
+  const pinnedPaths = [];
+  if (intent.asksVaultStructure) {
+    pinnedPaths.push('INDEX.md');
+  }
+  if (intent.prefersProtocol) {
+    pinnedPaths.push('INDEX.md', 'AGENT_PROTOCOL.md');
+  }
+  const pinnedCandidates = loadPinnedCandidates(db, filters, unique(pinnedPaths));
 
   const seedIndex = buildSeedEntityIndex(graphSpec);
   const matchedEntityIds = new Set();
-  const intent = analyzeQueryIntent(query);
   const queryEntities = extractEntities({
     title: query,
     content: query,
@@ -560,7 +627,7 @@ export async function searchVault(paths, config, filters, graphSpec, query, opti
   const lexicalRanks = usedLexicalMatches ? groupRanks(fallbackCandidates, 'id') : new Map();
   const semanticRanks = groupRanks(semanticCandidates, 'id');
 
-  const allRows = [...fallbackCandidates, ...semanticCandidates];
+  const allRows = [...fallbackCandidates, ...semanticCandidates, ...pinnedCandidates];
   for (const row of allRows) {
     if (!merged.has(row.id)) {
       merged.set(row.id, {

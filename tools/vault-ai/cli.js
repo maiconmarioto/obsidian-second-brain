@@ -14,7 +14,7 @@ import {
 import { formatJson } from './lib/common.js';
 import { lintFrontmatter } from './lib/frontmatter-lint.js';
 import { runHealthChecks } from './lib/health.js';
-import { buildIndex } from './lib/indexer.js';
+import { buildIndex, ensureFreshIndex } from './lib/indexer.js';
 import { buildPack } from './lib/packs.js';
 import { searchVault } from './lib/search.js';
 
@@ -69,6 +69,7 @@ async function main() {
   await ensureDirectories(paths);
   const config = await loadSearchConfig(paths);
   const graphSpec = await loadGraphSpec(paths);
+  const autoRefreshIndex = () => ensureFreshIndex(paths, config);
 
   const searchFn = (query, filters = {}, options = {}) =>
     searchVault(paths, config, filters, graphSpec, query, options);
@@ -87,6 +88,7 @@ async function main() {
       if (!query) {
         throw new Error('search requires a query');
       }
+      await autoRefreshIndex();
       output = await searchFn(
         query,
         {
@@ -105,6 +107,7 @@ async function main() {
       break;
     }
     case 'benchmark': {
+      await autoRefreshIndex();
       output = await runBenchmarks(paths, searchFn);
       break;
     }
@@ -118,6 +121,7 @@ async function main() {
       if (!packId) {
         throw new Error('pack-build requires a pack id');
       }
+      await autoRefreshIndex();
       const manifest = await loadContextPackManifest(paths, packId);
       output = await buildPack(paths, manifest, {
         packId,

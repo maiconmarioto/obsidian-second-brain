@@ -15,6 +15,7 @@ export function createPaths(root) {
     root,
     dbDir: path.join(root, '.vault-ai'),
     dbFile: path.join(root, '.vault-ai', 'index.sqlite'),
+    indexStateFile: path.join(root, '.vault-ai', 'index-state.json'),
     cacheDir: path.join(root, '.vault-ai', 'cache'),
     packOutputDir: path.join(root, '.vault-ai', 'packs'),
     reportDir: path.join(root, '.vault-ai', 'reports'),
