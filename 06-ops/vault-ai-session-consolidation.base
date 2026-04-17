@@ -1,0 +1,57 @@
+filters:
+  and:
+    - 'file.ext == "md"'
+    - or:
+      - 'file.inFolder("01-projects")'
+      - 'file.inFolder("02-workstreams")'
+    - 'type == "session"'
+formulas:
+  note_link: "file.asLink()"
+  consolidation_state: 'if(status == "open", "pending", if(status == "complete", "review", if(status == "consolidated", "done", if(status == "archived", "done", "review"))))'
+properties:
+  formula.note_link:
+    displayName: Session
+  project:
+    displayName: Project
+  workstream:
+    displayName: Workstream
+  agent:
+    displayName: Agent
+  date:
+    displayName: Date
+  status:
+    displayName: Status
+  formula.consolidation_state:
+    displayName: Consolidation
+views:
+  - type: table
+    name: "Needs consolidation"
+    filters:
+      or:
+        - 'formula.consolidation_state == "pending"'
+        - 'formula.consolidation_state == "review"'
+    order:
+      - formula.note_link
+      - project
+      - workstream
+      - agent
+      - date
+      - status
+      - formula.consolidation_state
+    sort:
+      - property: date
+        direction: DESC
+  - type: table
+    name: "Consolidated"
+    filters:
+      and:
+        - 'formula.consolidation_state == "done"'
+    order:
+      - formula.note_link
+      - project
+      - workstream
+      - date
+      - status
+    sort:
+      - property: date
+        direction: DESC

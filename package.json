@@ -1,0 +1,19 @@
+{
+  "name": "obsidian-second-brain-toolkit",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Local-first retrieval, linting, and context-pack toolkit for the obsidian-second-brain vault.",
+  "scripts": {
+    "vault-ai:index": "node tools/vault-ai/cli.js index",
+    "vault-ai:search": "node tools/vault-ai/cli.js search",
+    "vault-ai:benchmark": "node tools/vault-ai/cli.js benchmark",
+    "vault-ai:lint": "node tools/vault-ai/cli.js lint-frontmatter",
+    "vault-ai:pack": "node tools/vault-ai/cli.js pack-build",
+    "vault-ai:health": "node tools/vault-ai/cli.js health"
+  },
+  "dependencies": {
+    "@huggingface/transformers": "^3.7.6",
+    "yaml": "^2.8.1"
+  }
+}

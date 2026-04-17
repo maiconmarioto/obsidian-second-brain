@@ -1,0 +1,47 @@
+filters:
+  and:
+    - 'file.ext == "md"'
+    - or:
+      - 'file.inFolder("01-projects")'
+      - 'file.inFolder("02-workstreams")'
+    - 'type == "tasks"'
+formulas:
+  note_link: "file.asLink()"
+  scope_kind: 'if(file.inFolder("01-projects"), "project", if(file.inFolder("02-workstreams"), "workstream", "other"))'
+properties:
+  formula.note_link:
+    displayName: Queue
+  formula.scope_kind:
+    displayName: Scope
+  updated:
+    displayName: Updated
+  status:
+    displayName: Status
+views:
+  - type: table
+    name: "Open task queues"
+    filters:
+      and:
+        - 'status == "active"'
+    order:
+      - formula.note_link
+      - formula.scope_kind
+      - updated
+      - status
+    sort:
+      - property: updated
+        direction: DESC
+      - property: file.name
+        direction: ASC
+  - type: table
+    name: "All task queues"
+    order:
+      - formula.note_link
+      - formula.scope_kind
+      - updated
+      - status
+    sort:
+      - property: formula.scope_kind
+        direction: ASC
+      - property: updated
+        direction: DESC

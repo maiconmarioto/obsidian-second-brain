@@ -8,3 +8,7 @@
 .obsidian/cache/
 .obsidian/cache
 .obsidian/plugins/*/data.json
+
+# Local toolkit artifacts
+node_modules/
+.vault-ai/

@@ -1,0 +1,248 @@
+{
+  "version": "2026-04-17.v1",
+  "description": "Lightweight governance for freshness, duplication review, and entity alias expansion. Intended for retrieval-core consumption without requiring a graph database.",
+  "staleness": {
+    "date_field_priority": ["updated", "date", "created"],
+    "rules": [
+      {
+        "type": "project",
+        "status": ["active"],
+        "max_age_days": 30,
+        "severity": "warning",
+        "reason": "Project entrypoints should stay current enough to reflect next_action and operating state."
+      },
+      {
+        "type": "workstream",
+        "status": ["active"],
+        "max_age_days": 30,
+        "severity": "warning",
+        "reason": "Cross-project coordination notes age quickly when active."
+      },
+      {
+        "type": "context",
+        "status": ["active"],
+        "max_age_days": 45,
+        "severity": "warning",
+        "reason": "Stable context changes slower than tasks but should still be reviewed on a cadence."
+      },
+      {
+        "type": "tasks",
+        "status": ["active"],
+        "max_age_days": 14,
+        "severity": "error",
+        "reason": "Execution queues become unreliable quickly."
+      },
+      {
+        "type": "decision",
+        "status": ["proposed"],
+        "max_age_days": 30,
+        "severity": "warning",
+        "reason": "Unresolved decisions should not linger indefinitely."
+      },
+      {
+        "type": "session",
+        "status": ["open"],
+        "max_age_days": 3,
+        "severity": "warning",
+        "reason": "Open sessions should either be closed or promoted quickly."
+      },
+      {
+        "type": "research",
+        "status": ["active"],
+        "max_age_days": 21,
+        "severity": "warning",
+        "reason": "Research notes tied to moving tools and ecosystems drift fast."
+      },
+      {
+        "type": "ops",
+        "status": ["active"],
+        "max_age_days": 90,
+        "severity": "info",
+        "reason": "Operational notes age slower but still need periodic review."
+      }
+    ],
+    "exceptions": [
+      {
+        "type": "decision",
+        "status": ["accepted", "rejected", "superseded", "archived"],
+        "max_age_days": null,
+        "reason": "Resolved decisions are historical records, not freshness targets."
+      },
+      {
+        "type": "session",
+        "status": ["complete", "archived"],
+        "max_age_days": null,
+        "reason": "Completed sessions should not be flagged as stale by age alone."
+      }
+    ],
+    "path_overrides": [
+      {
+        "glob": "01-projects/*/tasks.md",
+        "max_age_days": 14,
+        "severity": "error"
+      },
+      {
+        "glob": "02-workstreams/*/tasks.md",
+        "max_age_days": 14,
+        "severity": "error"
+      },
+      {
+        "glob": "06-ops/ai-vault-landscape-*.md",
+        "max_age_days": 21,
+        "severity": "warning"
+      }
+    ]
+  },
+  "duplication": {
+    "review_only": true,
+    "candidate_output_contract": {
+      "fields": ["left_path", "right_path", "reason", "score", "action"]
+    },
+    "ignore_rules": [
+      {
+        "glob": "05-templates/**/*.md",
+        "reason": "Templates intentionally mirror canonical note structures."
+      },
+      {
+        "left_glob": "01-projects/*/sessions/*.md",
+        "right_glob": "01-projects/*/(index|context|tasks).md",
+        "reason": "Sessions are expected to overlap until durable facts are promoted."
+      },
+      {
+        "left_glob": "02-workstreams/*/sessions/*.md",
+        "right_glob": "02-workstreams/*/(index|scope|affected-projects|tasks).md",
+        "reason": "Workstream sessions are operational memory, not strict duplicates."
+      }
+    ],
+    "candidate_rules": [
+      {
+        "id": "canonical-sibling-overlap",
+        "scope": "same-folder",
+        "paths": ["01-projects/*/*.md", "02-workstreams/*/*.md"],
+        "thresholds": {
+          "title_similarity": 0.88,
+          "shared_heading_ratio": 0.5,
+          "body_overlap_ratio": 0.35
+        },
+        "action": "review-for-split-or-merge"
+      },
+      {
+        "id": "research-to-shared-knowledge-drift",
+        "scope": "cross-folder",
+        "paths": ["06-ops/*.md", "03-shared-knowledge/**/*.md"],
+        "thresholds": {
+          "rare_term_overlap": 3,
+          "body_overlap_ratio": 0.45
+        },
+        "action": "review-for-promotion"
+      },
+      {
+        "id": "decision-repeat",
+        "scope": "global",
+        "paths": ["01-projects/*/decisions/*.md", "02-workstreams/*/decisions/*.md", "04-shared-decisions/*.md"],
+        "thresholds": {
+          "title_similarity": 0.9,
+          "body_overlap_ratio": 0.4
+        },
+        "action": "review-for-supersedes-link"
+      }
+    ]
+  },
+  "entity_aliases": {
+    "normalization": {
+      "lowercase": true,
+      "strip_accents": true,
+      "collapse_whitespace": true,
+      "split_on": ["-", "_", "/"]
+    },
+    "resolution_order": [
+      "frontmatter.aliases",
+      "frontmatter.entity_id",
+      "seed_entities",
+      "frontmatter.project",
+      "frontmatter.workstream",
+      "path.basename"
+    ],
+    "query_expansion": {
+      "max_aliases_per_entity": 6,
+      "prefer_exact_title_or_path_match": true,
+      "allow_related_entities": true
+    },
+    "seed_entities": [
+      {
+        "entity_id": "project:cookie-manager",
+        "canonical_name": "cookie-manager",
+        "entity_type": "project",
+        "paths": [
+          "01-projects/cookie-manager/index.md",
+          "01-projects/cookie-manager/context.md",
+          "01-projects/cookie-manager/tasks.md"
+        ],
+        "aliases": [
+          "cookie manager",
+          "docin cafe",
+          "docin café",
+          "docin-cafe",
+          "legado docin",
+          "app legado docin cafe"
+        ],
+        "related_entities": ["project:coziva"]
+      },
+      {
+        "entity_id": "project:coziva",
+        "canonical_name": "coziva",
+        "entity_type": "project",
+        "paths": [
+          "01-projects/coziva/index.md",
+          "01-projects/coziva/context.md",
+          "01-projects/coziva/tasks.md",
+          "01-projects/coziva/decisions/0001-rebuild-contract.md"
+        ],
+        "aliases": [
+          "coziva saas",
+          "rebuild coziva",
+          "saas micro-manufatura alimentar",
+          "micro-manufatura alimentar artesanal"
+        ],
+        "related_entities": ["project:cookie-manager"]
+      },
+      {
+        "entity_id": "project:mmarioto-landingpage",
+        "canonical_name": "mmarioto-landingpage",
+        "entity_type": "project",
+        "paths": [
+          "01-projects/mmarioto-landingpage/index.md",
+          "01-projects/mmarioto-landingpage/context.md",
+          "01-projects/mmarioto-landingpage/tasks.md",
+          "01-projects/mmarioto-landingpage/decisions/0001-release-baseline-1-0-0.md"
+        ],
+        "aliases": [
+          "mmarioto site",
+          "site oficial mmarioto",
+          "official mmarioto marketing site",
+          "mmarioto.com.br",
+          "landing page mmarioto"
+        ],
+        "related_entities": []
+      },
+      {
+        "entity_id": "vault:obsidian-engineering-brain",
+        "canonical_name": "obsidian engineering brain",
+        "entity_type": "vault",
+        "paths": [
+          "INDEX.md",
+          "AGENT_PROTOCOL.md",
+          "04-shared-decisions/0001-vault-structure.md",
+          "06-ops/vault-map.md"
+        ],
+        "aliases": [
+          "vault",
+          "engineering brain",
+          "obsidian second brain",
+          "obsidian-second-brain"
+        ],
+        "related_entities": []
+      }
+    ]
+  }
+}

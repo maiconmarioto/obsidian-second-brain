@@ -1,0 +1,61 @@
+filters:
+  and:
+    - 'file.ext == "md"'
+    - or:
+      - 'file.inFolder("01-projects")'
+      - 'file.inFolder("02-workstreams")'
+      - 'file.inFolder("03-shared-knowledge")'
+      - 'file.inFolder("04-shared-decisions")'
+    - 'type != "guide"'
+formulas:
+  note_link: "file.asLink()"
+  last_touched: "if(updated, updated, file.mtime)"
+  stale_days: "((now() - formula.last_touched) / 86400000).round()"
+properties:
+  formula.note_link:
+    displayName: Note
+  type:
+    displayName: Type
+  status:
+    displayName: Status
+  formula.last_touched:
+    displayName: Last touched
+  formula.stale_days:
+    displayName: Stale days
+views:
+  - type: table
+    name: "Stale 14d"
+    filters:
+      and:
+        - 'formula.last_touched < now() - "14d"'
+        - 'status == "active" || status == "accepted"'
+    groupBy:
+      property: type
+      direction: ASC
+    order:
+      - formula.note_link
+      - type
+      - status
+      - formula.last_touched
+      - formula.stale_days
+    sort:
+      - property: formula.stale_days
+        direction: DESC
+  - type: table
+    name: "Stale 30d"
+    filters:
+      and:
+        - 'formula.last_touched < now() - "30d"'
+        - 'status == "active" || status == "accepted"'
+    groupBy:
+      property: type
+      direction: ASC
+    order:
+      - formula.note_link
+      - type
+      - status
+      - formula.last_touched
+      - formula.stale_days
+    sort:
+      - property: formula.stale_days
+        direction: DESC

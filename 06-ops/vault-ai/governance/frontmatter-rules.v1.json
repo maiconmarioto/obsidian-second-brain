@@ -1,0 +1,281 @@
+{
+  "version": "2026-04-17.v1",
+  "description": "Frontmatter governance for canonical vault notes. Designed for future linting with error, warning, and info severity levels.",
+  "lint_scope": {
+    "include": [
+      "00-inbox/**/*.md",
+      "01-projects/**/*.md",
+      "02-workstreams/**/*.md",
+      "03-shared-knowledge/**/*.md",
+      "04-shared-decisions/**/*.md",
+      "05-templates/**/*.md",
+      "06-ops/**/*.md",
+      "AGENT_PROTOCOL.md",
+      "INDEX.md"
+    ],
+    "exclude": [
+      "README.md",
+      "03-shared-knowledge/*/README.md",
+      "06-ops/skills/**/*.md",
+      "202*-*.md"
+    ]
+  },
+  "global": {
+    "required_keys": ["type", "status"],
+    "field_rules": {
+      "type": {
+        "severity": "error",
+        "kind": "string",
+        "pattern": "^[a-z][a-z0-9-]*$"
+      },
+      "status": {
+        "severity": "error",
+        "kind": "string",
+        "allowed_values": [
+          "active",
+          "draft",
+          "proposed",
+          "accepted",
+          "rejected",
+          "superseded",
+          "open",
+          "complete",
+          "paused",
+          "archived"
+        ]
+      },
+      "created": {
+        "severity": "error",
+        "kind": "string",
+        "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+      },
+      "updated": {
+        "severity": "error",
+        "kind": "string",
+        "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+      },
+      "date": {
+        "severity": "error",
+        "kind": "string",
+        "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+      },
+      "decision_id": {
+        "severity": "error",
+        "kind": "string",
+        "pattern": "^\\d{4}$"
+      },
+      "repo_path": {
+        "severity": "error",
+        "kind": "string",
+        "pattern": "^/"
+      },
+      "production_url": {
+        "severity": "error",
+        "kind": "string",
+        "pattern": "^$|^https?://"
+      },
+      "tags": {
+        "severity": "warning",
+        "kind": "array",
+        "min_items": 1,
+        "unique_items": true,
+        "item_pattern": "^[a-z0-9][a-z0-9-]*$"
+      },
+      "primary_stack": {
+        "severity": "error",
+        "kind": "array",
+        "min_items": 1,
+        "item_kind": "string"
+      },
+      "owner": {
+        "severity": "error",
+        "kind": "string",
+        "min_length": 1
+      },
+      "next_action": {
+        "severity": "error",
+        "kind": "string",
+        "min_length": 8
+      },
+      "scope": {
+        "severity": "error",
+        "kind": "string",
+        "allowed_values": ["project", "workstream", "vault", "shared"]
+      },
+      "agent": {
+        "severity": "error",
+        "kind": "string",
+        "min_length": 1
+      },
+      "project": {
+        "severity": "warning",
+        "kind": "string",
+        "min_length": 1
+      },
+      "workstream": {
+        "severity": "warning",
+        "kind": "string",
+        "min_length": 1
+      },
+      "topic": {
+        "severity": "error",
+        "kind": "string",
+        "min_length": 1
+      },
+      "aliases": {
+        "severity": "info",
+        "kind": "array",
+        "min_items": 1,
+        "unique_items": true,
+        "item_kind": "string"
+      },
+      "entity_id": {
+        "severity": "info",
+        "kind": "string",
+        "pattern": "^[a-z]+:[a-z0-9-]+$"
+      }
+    }
+  },
+  "type_rules": {
+    "project": {
+      "required": ["owner", "created", "updated", "repo_path", "primary_stack", "next_action"],
+      "recommended": ["tags", "production_url", "baseline_commit", "aliases", "entity_id"],
+      "allowed_status": ["active", "proposed", "paused", "archived"],
+      "tag_expectations": ["project"]
+    },
+    "workstream": {
+      "required": ["owner", "created", "updated"],
+      "recommended": ["tags", "aliases", "entity_id"],
+      "allowed_status": ["active", "proposed", "paused", "archived"],
+      "tag_expectations": ["workstream"]
+    },
+    "context": {
+      "required": ["updated"],
+      "recommended": ["tags", "aliases", "entity_id"],
+      "allowed_status": ["active", "draft", "archived"],
+      "tag_expectations": ["context"]
+    },
+    "tasks": {
+      "required": ["updated"],
+      "recommended": ["tags", "entity_id"],
+      "allowed_status": ["active", "paused", "archived"],
+      "tag_expectations": ["tasks"]
+    },
+    "decision": {
+      "required": ["decision_id", "date", "scope"],
+      "recommended": ["tags", "entity_id"],
+      "allowed_status": ["proposed", "accepted", "rejected", "superseded", "archived"],
+      "tag_expectations": ["decision"]
+    },
+    "session": {
+      "required": ["agent", "date"],
+      "recommended": ["project", "workstream", "tags"],
+      "allowed_status": ["open", "complete", "archived"],
+      "tag_expectations": ["session"],
+      "cross_field_rules": [
+        {
+          "kind": "at_least_one_of",
+          "fields": ["project", "workstream"],
+          "severity": "warning"
+        }
+      ]
+    },
+    "knowledge": {
+      "required": ["topic"],
+      "recommended": ["tags", "updated", "aliases", "entity_id"],
+      "allowed_status": ["draft", "active", "archived"],
+      "tag_expectations": ["knowledge"]
+    },
+    "research": {
+      "required": ["date", "updated"],
+      "recommended": ["tags", "aliases", "entity_id"],
+      "allowed_status": ["draft", "active", "archived"]
+    },
+    "ops": {
+      "required": [],
+      "recommended": ["updated", "tags"],
+      "allowed_status": ["draft", "active", "archived"]
+    },
+    "guide": {
+      "required": [],
+      "recommended": ["updated", "tags"],
+      "allowed_status": ["draft", "active", "archived"]
+    },
+    "protocol": {
+      "required": [],
+      "recommended": ["updated", "tags"],
+      "allowed_status": ["draft", "active", "archived"]
+    },
+    "index": {
+      "required": [],
+      "recommended": ["updated", "tags"],
+      "allowed_status": ["draft", "active", "archived"]
+    }
+  },
+  "path_hints": [
+    {
+      "glob": "01-projects/*/index.md",
+      "expected_type": "project"
+    },
+    {
+      "glob": "01-projects/*/context.md",
+      "expected_type": "context"
+    },
+    {
+      "glob": "01-projects/*/tasks.md",
+      "expected_type": "tasks"
+    },
+    {
+      "glob": "01-projects/*/decisions/*.md",
+      "expected_type": "decision"
+    },
+    {
+      "glob": "01-projects/*/sessions/*.md",
+      "expected_type": "session"
+    },
+    {
+      "glob": "02-workstreams/*/index.md",
+      "expected_type": "workstream"
+    },
+    {
+      "glob": "02-workstreams/*/decisions/*.md",
+      "expected_type": "decision"
+    },
+    {
+      "glob": "02-workstreams/*/sessions/*.md",
+      "expected_type": "session"
+    },
+    {
+      "glob": "04-shared-decisions/*.md",
+      "expected_type": "decision"
+    },
+    {
+      "glob": "05-templates/template-project.md",
+      "expected_type": "project"
+    },
+    {
+      "glob": "05-templates/template-workstream.md",
+      "expected_type": "workstream"
+    },
+    {
+      "glob": "05-templates/template-context.md",
+      "expected_type": "context"
+    },
+    {
+      "glob": "05-templates/template-tasks.md",
+      "expected_type": "tasks"
+    },
+    {
+      "glob": "05-templates/template-decision.md",
+      "expected_type": "decision"
+    },
+    {
+      "glob": "05-templates/template-session.md",
+      "expected_type": "session"
+    },
+    {
+      "glob": "05-templates/template-knowledge.md",
+      "expected_type": "knowledge"
+    }
+  ]
+}

@@ -1,0 +1,56 @@
+filters:
+  and:
+    - 'file.ext == "md"'
+    - or:
+      - 'file.inFolder("01-projects")'
+      - 'file.inFolder("02-workstreams")'
+      - 'file.inFolder("04-shared-decisions")'
+    - 'type == "decision"'
+formulas:
+  note_link: "file.asLink()"
+properties:
+  formula.note_link:
+    displayName: Decision
+  decision_id:
+    displayName: Decision ID
+  scope:
+    displayName: Scope
+  status:
+    displayName: Status
+  date:
+    displayName: Date
+views:
+  - type: table
+    name: "Open decisions"
+    filters:
+      or:
+        - 'status == "proposed"'
+        - 'status == "active"'
+    groupBy:
+      property: scope
+      direction: ASC
+    order:
+      - formula.note_link
+      - decision_id
+      - scope
+      - status
+      - date
+    sort:
+      - property: date
+        direction: DESC
+  - type: table
+    name: "Accepted decisions"
+    filters:
+      and:
+        - 'status == "accepted"'
+    groupBy:
+      property: scope
+      direction: ASC
+    order:
+      - formula.note_link
+      - decision_id
+      - scope
+      - date
+    sort:
+      - property: date
+        direction: DESC

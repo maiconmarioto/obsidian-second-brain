@@ -1,0 +1,51 @@
+filters:
+  and:
+    - 'file.ext == "md"'
+    - 'file.inFolder("01-projects")'
+    - 'type == "project"'
+formulas:
+  note_link: "file.asLink()"
+properties:
+  formula.note_link:
+    displayName: Project
+  owner:
+    displayName: Owner
+  updated:
+    displayName: Updated
+  next_action:
+    displayName: Next action
+  repo_path:
+    displayName: Repo path
+  production_url:
+    displayName: Production URL
+views:
+  - type: table
+    name: "Active projects"
+    filters:
+      and:
+        - 'status == "active"'
+    order:
+      - formula.note_link
+      - owner
+      - updated
+      - next_action
+      - repo_path
+      - production_url
+    sort:
+      - property: updated
+        direction: DESC
+      - property: file.name
+        direction: ASC
+  - type: table
+    name: "All projects"
+    order:
+      - formula.note_link
+      - status
+      - owner
+      - updated
+      - next_action
+    sort:
+      - property: status
+        direction: ASC
+      - property: updated
+        direction: DESC
