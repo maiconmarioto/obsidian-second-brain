@@ -20,7 +20,7 @@ const EXCLUDED_DIRS = new Set([
 
 const INDEXABLE_EXTENSIONS = new Set(['.md', '.base']);
 
-function stripFrontmatter(raw) {
+export function stripFrontmatter(raw) {
   if (!raw.startsWith('---\n')) {
     return { frontmatter: {}, body: raw };
   }
@@ -220,7 +220,7 @@ function buildPreview(raw) {
   return raw.replace(/\s+/g, ' ').trim().slice(0, 420);
 }
 
-function buildFrontmatterSummary(frontmatter) {
+export function buildFrontmatterSummary(frontmatter) {
   const summaryKeys = [
     'type',
     'status',

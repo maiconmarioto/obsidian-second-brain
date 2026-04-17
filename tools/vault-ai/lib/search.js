@@ -1,8 +1,10 @@
 import { DatabaseSync } from 'node:sqlite';
 
 import {
+  clipText,
   normalizeText,
   reciprocalRankFusion,
+  SEARCH_BUDGET_PRESETS,
   trigramSimilarity,
   unique,
 } from './common.js';
@@ -358,6 +360,8 @@ function queryIntentBoost(row, intent) {
   if (intent.asksNextAction && row.noteType === 'context' && heading.includes('stable facts only')) score += 0.016;
   if (intent.asksNextAction && preview.includes('legado')) score += 0.01;
   if (intent.asksNextAction && row.noteType === 'tasks' && row.sectionHeading === 'Metadata') score -= 0.02;
+  if (intent.asksNextAction && row.noteType === 'tasks' && /( now| next)/.test(` ${heading}`)) score += 0.03;
+  if (intent.asksNextAction && row.noteType === 'tasks' && heading.includes('done')) score -= 0.04;
   if (intent.prefersTasks && row.noteType === 'tasks') score += 0.03;
   if (intent.prefersTasks && /( now| next| blocked| decision needed)/.test(` ${heading}`)) score += 0.012;
   if (intent.prefersDecision && row.noteType === 'decision') score += 0.026;
@@ -406,6 +410,30 @@ function queryIntentBoost(row, intent) {
   }
 
   return score;
+}
+
+function lightweightRerankScore(row, queryTokens) {
+  if (!queryTokens.length) return 0;
+  const title = normalizeText(row.title);
+  const heading = normalizeText(row.headingPath);
+  const preview = normalizeText(row.preview);
+  const filePath = normalizeText(row.path);
+  const tags = normalizeText(row.tagsText);
+  let weightedMatches = 0;
+  let matchedTokens = 0;
+
+  for (const token of queryTokens) {
+    let tokenScore = 0;
+    if (title.includes(token)) tokenScore = Math.max(tokenScore, 0.42);
+    if (heading.includes(token)) tokenScore = Math.max(tokenScore, 0.36);
+    if (preview.includes(token)) tokenScore = Math.max(tokenScore, 0.24);
+    if (tags.includes(token)) tokenScore = Math.max(tokenScore, 0.18);
+    if (filePath.includes(token)) tokenScore = Math.max(tokenScore, 0.14);
+    if (tokenScore > 0) matchedTokens += 1;
+    weightedMatches += tokenScore;
+  }
+
+  return (weightedMatches / queryTokens.length) * 0.08 + (matchedTokens / queryTokens.length) * 0.03;
 }
 
 function extractScopeKey(filePath) {
@@ -467,11 +495,41 @@ function buildScopeBoosts(rows, seedIndex, matchedEntityIds) {
   return boosts;
 }
 
-function diversifyResults(rows, limit) {
+function thematicKeyForRow(row) {
+  return normalizeText(`${row.noteType}:${row.sectionHeading}`).replace(/\b\d+\b/g, '').trim() || row.path;
+}
+
+function resolveSearchBudget(options, config) {
+  const presetKey = options.compact ? 'compact' : options.budget;
+  const preset = presetKey ? SEARCH_BUDGET_PRESETS[presetKey] : null;
+  return {
+    name: preset?.name || (options.compact ? 'compact' : options.budget || 'default'),
+    compact: Boolean(options.compact || preset?.name === 'compact'),
+    maxDistinctPaths:
+      options.maxPaths != null
+        ? Number(options.maxPaths)
+        : preset?.maxDistinctPaths ?? Number.POSITIVE_INFINITY,
+    maxSectionsPerPath:
+      options.sectionsPerPath != null
+        ? Number(options.sectionsPerPath)
+        : preset?.maxSectionsPerPath ?? Number.POSITIVE_INFINITY,
+    previewChars:
+      options.previewChars != null
+        ? Number(options.previewChars)
+        : preset?.previewChars ?? config.searchPreviewChars ?? 220,
+    relatedPathsLimit:
+      options.relatedPathsLimit != null
+        ? Number(options.relatedPathsLimit)
+        : preset?.relatedPathsLimit ?? 3,
+  };
+}
+
+function diversifyResults(rows, limit, budget) {
   const remaining = [...rows];
   const selected = [];
   const pathCounts = new Map();
   const scopeCounts = new Map();
+  const themeCounts = new Map();
 
   while (remaining.length && selected.length < limit) {
     let bestIndex = 0;
@@ -480,23 +538,34 @@ function diversifyResults(rows, limit) {
     for (let index = 0; index < remaining.length; index += 1) {
       const row = remaining[index];
       const pathCount = pathCounts.get(row.path) || 0;
+      const distinctPathCount = pathCounts.size;
       const scopeKey = extractScopeKey(row.path);
       const scopeCount = scopeCounts.get(scopeKey) || 0;
+      const themeKey = thematicKeyForRow(row);
+      const themeCount = themeCounts.get(themeKey) || 0;
+      if (pathCount === 0 && distinctPathCount >= budget.maxDistinctPaths) continue;
+      if (pathCount >= budget.maxSectionsPerPath) continue;
       let score = row.finalScore;
       if (pathCount > 0) score -= 0.018 * pathCount;
       if (scopeCount > 1) score -= 0.006 * (scopeCount - 1);
       if (pathCount > 0 && row.sectionHeading === 'Metadata') score -= 0.01;
+      if (themeCount > 0) score -= 0.008 * themeCount;
+      if (budget.compact && pathCount > 0) score -= 0.03 * pathCount;
       if (score > bestScore) {
         bestScore = score;
         bestIndex = index;
       }
     }
 
+    if (bestScore === -Infinity) break;
+
     const [picked] = remaining.splice(bestIndex, 1);
     selected.push(picked);
     pathCounts.set(picked.path, (pathCounts.get(picked.path) || 0) + 1);
     const scopeKey = extractScopeKey(picked.path);
     scopeCounts.set(scopeKey, (scopeCounts.get(scopeKey) || 0) + 1);
+    const themeKey = thematicKeyForRow(picked);
+    themeCounts.set(themeKey, (themeCounts.get(themeKey) || 0) + 1);
   }
 
   return selected;
@@ -533,6 +602,8 @@ function relatedExpansion(baseResults, fileLookup, relatedDepth = 1, relatedBoos
 export async function searchVault(paths, config, filters, graphSpec, query, options = {}) {
   const db = openDatabase(paths.dbFile);
   const intent = analyzeQueryIntent(query);
+  const queryTokens = buildSearchTokens(query);
+  const budget = resolveSearchBudget(options, config);
   const lexicalCandidates = query.trim()
     ? loadLexicalCandidates(db, query, filters, config)
     : [];
@@ -666,6 +737,7 @@ export async function searchVault(paths, config, filters, graphSpec, query, opti
     finalScore += fuzzyScore * 0.14;
     finalScore += contextualScoreAdjustment(row);
     finalScore += queryIntentBoost(row, intent);
+    finalScore += lightweightRerankScore(row, queryTokens);
     return {
       ...row,
       entityScore,
@@ -711,17 +783,19 @@ export async function searchVault(paths, config, filters, graphSpec, query, opti
     config.relatedBoost,
   );
 
-  const finalResults = diversifyResults(ranked, options.limit ?? config.searchLimit).map((result) => ({
+  const finalResults = diversifyResults(ranked, options.limit ?? config.searchLimit, budget).map((result) => ({
     ...result,
+    compactPreview: clipText(result.preview, budget.previewChars),
     relatedPaths: expansions
       .filter((entry) => entry.path !== result.path)
-      .slice(0, 5)
+      .slice(0, budget.relatedPathsLimit)
       .map((entry) => entry.path),
   }));
 
   db.close();
   return {
     query,
+    budget,
     resultCount: finalResults.length,
     embeddingsUsed: Boolean(semanticCandidates.length),
     results: finalResults,

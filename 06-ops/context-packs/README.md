@@ -13,7 +13,7 @@ tags:
 ## Purpose
 - Hold reusable retrieval manifests for recurring agent jobs.
 - Preserve the existing project/workstream model instead of creating a parallel memory structure.
-- Stay useful before the future CLI and search core are ready.
+- Feed `vault-ai pack-build` with reusable, token-bounded context assembly rules.
 
 ## Manifest contract
 - Each pack is a Markdown note with a small frontmatter header and one `Manifest` YAML block.
@@ -32,4 +32,4 @@ tags:
 - Seed from `index.md` and `tasks.md` whenever a project or workstream exists.
 - Pull `context.md` only when stable background is needed.
 - Pull `decisions/` before `sessions/` when both are available.
-- Keep pack logic path-aware and metadata-aware so it remains compatible with both direct filesystem selection and future hybrid retrieval.
+- Keep pack logic path-aware and metadata-aware so the runtime can stay compact and predictable.

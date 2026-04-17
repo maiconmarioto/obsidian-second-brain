@@ -47,10 +47,10 @@ function printHelp() {
     [
       'vault-ai commands:',
       '  index [--no-embeddings]',
-      '  search <query> [--limit N] [--type TYPE] [--status STATUS] [--tag TAG] [--path PATH] [--related-depth N] [--json]',
+      '  search <query> [--limit N] [--type TYPE] [--status STATUS] [--tag TAG] [--path PATH] [--related-depth N] [--budget PRESET] [--compact] [--max-paths N] [--sections-per-path N] [--preview-chars N] [--json]',
       '  benchmark [--json]',
       '  lint-frontmatter [--json]',
-      '  pack-build <pack-id> [--project slug] [--json]',
+      '  pack-build <pack-id> [--project slug] [--budget LEVEL] [--compact] [--max-notes N] [--chars-per-note N] [--json]',
       '  health [--json]',
       '',
     ].join('\n'),
@@ -102,6 +102,15 @@ async function main() {
           relatedDepth: flags['related-depth']
             ? Number(flags['related-depth'])
             : undefined,
+          budget: flags.budget,
+          compact: Boolean(flags.compact),
+          maxPaths: flags['max-paths'] ? Number(flags['max-paths']) : undefined,
+          sectionsPerPath: flags['sections-per-path']
+            ? Number(flags['sections-per-path'])
+            : undefined,
+          previewChars: flags['preview-chars']
+            ? Number(flags['preview-chars'])
+            : undefined,
         },
       );
       break;
@@ -127,6 +136,12 @@ async function main() {
         packId,
         project: flags.project,
         scope: flags.scope,
+        budget: flags.budget,
+        compact: Boolean(flags.compact),
+        maxNotes: flags['max-notes'] ? Number(flags['max-notes']) : undefined,
+        charsPerNote: flags['chars-per-note']
+          ? Number(flags['chars-per-note'])
+          : undefined,
       });
       break;
     }
@@ -146,7 +161,7 @@ async function main() {
       `${output.results
         .map(
           (row, index) =>
-            `${index + 1}. ${row.path} :: ${row.headingPath} :: ${row.matchedSignals.join(', ')} :: ${row.preview}`,
+            `${index + 1}. ${row.path} :: ${row.headingPath} :: ${row.matchedSignals.join(', ')} :: ${row.compactPreview}`,
         )
         .join('\n')}\n`,
     );

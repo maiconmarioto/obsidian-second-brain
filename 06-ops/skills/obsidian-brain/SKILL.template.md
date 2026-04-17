@@ -22,7 +22,7 @@ Use this skill when the task involves engineering memory, historical context, pr
 - Vault AI launcher: `__VAULT_AI_LAUNCHER__`
 
 ## Tool preference
-1. Use `__VAULT_AI_LAUNCHER__ search` for retrieval.
+1. Use `__VAULT_AI_LAUNCHER__ search --compact` for retrieval.
 2. Use `__VAULT_AI_LAUNCHER__ pack-build` for recurring context assembly.
 3. Use `obsidian read` to open the exact canonical notes returned by retrieval.
 4. Use `obsidian files` and `obsidian folders` only for structural inspection.
@@ -45,7 +45,7 @@ Before making structural decisions or writing notes, read:
 3. `obsidian read vault="__VAULT_NAME__" path="04-shared-decisions/0001-vault-structure.md"`
 
 ## Retrieval strategy
-1. Start with `__VAULT_AI_LAUNCHER__ search "<query>"`.
+1. Start with `__VAULT_AI_LAUNCHER__ search --compact "<query>"`.
 2. Read the top canonical hits with `obsidian read`.
 3. If the task is recurring, try `__VAULT_AI_LAUNCHER__ pack-build <pack-id> ...` before manually reading many notes.
 4. Use `obsidian files` and `obsidian folders` only when you need structural confirmation.
@@ -69,8 +69,8 @@ Before making structural decisions or writing notes, read:
 Run from any working directory:
 
 ```bash
-__VAULT_AI_LAUNCHER__ search "payments"
-__VAULT_AI_LAUNCHER__ pack-build project-working-set --project coziva
+__VAULT_AI_LAUNCHER__ search --compact "payments"
+__VAULT_AI_LAUNCHER__ pack-build project-working-set --project coziva --budget medium
 __VAULT_AI_LAUNCHER__ health
 __VAULT_AI_LAUNCHER__ lint-frontmatter
 ```

@@ -11,7 +11,7 @@ tags:
 
 # Vault AI
 
-This subtree holds retrieval and metadata-governance artifacts that can land before the search core is implemented.
+This subtree holds retrieval, metadata-governance, benchmarking, and validation artifacts for the local `vault-ai` toolkit.
 
 ## What lives here
 - `benchmarks/benchmark-set.v1.json`: initial benchmark queries with expected hits, ranking intent, alias stress, and filter coverage.
@@ -19,7 +19,13 @@ This subtree holds retrieval and metadata-governance artifacts that can land bef
 - `governance/retrieval-governance.v1.json`: lightweight rules for staleness, duplication review, and entity alias expansion.
 - `validation/validation-playbook.md`: how to evaluate retrieval quality and metadata health against these files.
 
+## Current behavior
+- `vault-ai search` uses hybrid retrieval with fragment-level hits, lightweight reranking, and optional compact context budgets.
+- `vault-ai search --compact` is the default low-token retrieval mode for agents.
+- `vault-ai pack-build` emits compact note summaries with fixed per-note budgets instead of dumping whole files.
+- `vault-ai benchmark`, `vault-ai health`, and `vault-ai lint-frontmatter` keep retrieval quality and note hygiene measurable.
+
 ## Scope
 - These files are vault-facing contracts.
-- They do not implement indexing, search, lint, dashboards, or context-pack generation.
-- They are designed to be consumed later by the retrieval core and metadata checks.
+- The implementation lives under `tools/vault-ai/`.
+- These files define the contracts that the runtime consumes.

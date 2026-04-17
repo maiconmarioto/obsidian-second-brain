@@ -13,6 +13,7 @@ export const DEFAULTS = {
   relatedBoost: 0.18,
   fullRebuildThresholdRatio: 0.35,
   fullRebuildThresholdFiles: 25,
+  searchPreviewChars: 220,
   staleDays: {
     project: 14,
     tasks: 7,
@@ -21,6 +22,51 @@ export const DEFAULTS = {
     session: 7,
     knowledge: 60,
     default: 30,
+  },
+};
+
+export const SEARCH_BUDGET_PRESETS = {
+  compact: {
+    name: 'compact',
+    maxDistinctPaths: 3,
+    maxSectionsPerPath: 1,
+    previewChars: 140,
+    relatedPathsLimit: 2,
+  },
+  answer: {
+    name: 'answer',
+    maxDistinctPaths: 4,
+    maxSectionsPerPath: 1,
+    previewChars: 180,
+    relatedPathsLimit: 2,
+  },
+  deep: {
+    name: 'deep',
+    maxDistinctPaths: 6,
+    maxSectionsPerPath: 2,
+    previewChars: 260,
+    relatedPathsLimit: 4,
+  },
+};
+
+export const PACK_BUDGET_PRESETS = {
+  low: {
+    name: 'low',
+    maxNotes: 5,
+    charsPerNote: 500,
+    sectionsPerNote: 2,
+  },
+  medium: {
+    name: 'medium',
+    maxNotes: 7,
+    charsPerNote: 800,
+    sectionsPerNote: 3,
+  },
+  high: {
+    name: 'high',
+    maxNotes: 9,
+    charsPerNote: 1100,
+    sectionsPerNote: 4,
   },
 };
 
@@ -144,6 +190,14 @@ export function reciprocalRankFusion(rank, k = 60) {
 
 export function formatJson(data) {
   return `${JSON.stringify(data, null, 2)}\n`;
+}
+
+export function clipText(value, maxChars = 220) {
+  const normalized = String(value || '').replace(/\s+/g, ' ').trim();
+  if (!normalized || normalized.length <= maxChars) return normalized;
+  const clipped = normalized.slice(0, Math.max(maxChars - 1, 1));
+  const boundary = clipped.lastIndexOf(' ');
+  return `${(boundary > maxChars * 0.6 ? clipped.slice(0, boundary) : clipped).trim()}…`;
 }
 
 export function globToRegExp(glob) {
