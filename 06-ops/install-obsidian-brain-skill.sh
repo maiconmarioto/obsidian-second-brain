@@ -36,6 +36,19 @@ Options:
 EOF
 }
 
+shell_rc_file() {
+  local shell_name
+  shell_name="$(basename "${SHELL:-}")"
+
+  case "$shell_name" in
+    zsh) printf '%s' "$HOME/.zshrc" ;;
+    bash) printf '%s' "$HOME/.bashrc" ;;
+    *)
+      printf '%s' "$HOME/.profile"
+      ;;
+  esac
+}
+
 join_by() {
   local delimiter="$1"
   shift
@@ -493,6 +506,26 @@ link_vault_ai_launcher() {
   echo "created vault-ai launcher: $target -> $source"
 }
 
+check_local_bin_path() {
+  local path_entry
+  local rc_file
+  local export_line='export PATH="$HOME/.local/bin:$PATH"'
+
+  IFS=':' read -r -a path_entries <<< "${PATH:-}"
+  for path_entry in "${path_entries[@]}"; do
+    if [ "$path_entry" = "$LOCAL_BIN_DIR" ]; then
+      echo "ok: $LOCAL_BIN_DIR is already in PATH"
+      return
+    fi
+  done
+
+  rc_file="$(shell_rc_file)"
+  echo
+  echo "warning: $LOCAL_BIN_DIR is not in PATH"
+  echo "Add this line to $rc_file and open a new shell:"
+  echo "  $export_line"
+}
+
 link_agent() {
   local agent="$1"
   local target
@@ -596,6 +629,7 @@ main() {
   render_vault_ai_launcher
   run_vault_ai_setup
   link_vault_ai_launcher
+  check_local_bin_path
 
   for agent in "${AGENTS[@]}"; do
     link_agent "$agent"

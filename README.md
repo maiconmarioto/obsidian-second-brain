@@ -116,6 +116,8 @@ The latest index report is written to:
 The machine-local launcher is linked at:
 - `~/.local/bin/vault-ai`
 
+If `~/.local/bin` is not in `PATH`, the installer prints the exact line to add to your shell rc file.
+
 ## How to use this brain
 1. Open or keep Obsidian running.
 2. Work inside any repository you want.
