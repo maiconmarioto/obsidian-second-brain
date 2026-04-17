@@ -11,6 +11,9 @@ LOCAL_ROOT="${XDG_DATA_HOME:-$HOME/.local/share}/obsidian-brain"
 RENDER_DIR="$LOCAL_ROOT/current"
 CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/obsidian-brain"
 CONFIG_FILE="$CONFIG_DIR/config.env"
+LOCAL_BIN_DIR="${HOME}/.local/bin"
+VAULT_AI_LAUNCHER_PATH="$LOCAL_BIN_DIR/vault-ai"
+LAST_INDEX_REPORT_REL=".vault-ai/reports/last-index.json"
 
 AGENTS=()
 VAULT_NAME="${VAULT_NAME_DEFAULT}"
@@ -286,6 +289,23 @@ validate_inputs() {
     echo "Install Obsidian and register the CLI before running this installer." >&2
     exit 1
   fi
+
+  if ! command -v node >/dev/null 2>&1; then
+    echo "error: node not found in PATH" >&2
+    echo "Install Node.js before running this installer." >&2
+    exit 1
+  fi
+
+  if ! command -v npm >/dev/null 2>&1; then
+    echo "error: npm not found in PATH" >&2
+    echo "Install npm before running this installer." >&2
+    exit 1
+  fi
+
+  if [ ! -f "$VAULT_ROOT/package.json" ]; then
+    echo "error: package.json not found in vault root: $VAULT_ROOT" >&2
+    exit 1
+  fi
 }
 
 preflight_cli() {
@@ -336,9 +356,11 @@ render_template() {
   awk \
     -v vault_name="$VAULT_NAME" \
     -v vault_root="$VAULT_ROOT" \
+    -v vault_ai_launcher="$VAULT_AI_LAUNCHER_PATH" \
     '{
       gsub(/__VAULT_NAME__/, vault_name)
       gsub(/__VAULT_ROOT__/, vault_root)
+      gsub(/__VAULT_AI_LAUNCHER__/, vault_ai_launcher)
       print
     }' "$TEMPLATE_FILE" > "$RENDER_DIR/SKILL.md"
 
@@ -349,6 +371,7 @@ Rendered local installation for this machine.
 
 - Vault name: $VAULT_NAME
 - Vault root: $VAULT_ROOT
+- Vault AI launcher: $VAULT_AI_LAUNCHER_PATH
 - Canonical source: $CANONICAL_SKILL_DIR
 EOF
 
@@ -358,7 +381,116 @@ VAULT_ROOT='$VAULT_ROOT'
 AGENTS='$(join_by , "${AGENTS[@]}")'
 CANONICAL_SKILL_DIR='$CANONICAL_SKILL_DIR'
 RENDER_DIR='$RENDER_DIR'
+VAULT_AI_LAUNCHER_PATH='$VAULT_AI_LAUNCHER_PATH'
 EOF
+}
+
+render_vault_ai_launcher() {
+  local launcher_dir="$RENDER_DIR/bin"
+  local launcher_file="$launcher_dir/vault-ai"
+
+  if [ "$DRY_RUN" -eq 1 ]; then
+    echo "dry-run: would render vault-ai launcher:"
+    echo "  output:   $launcher_file"
+    return
+  fi
+
+  mkdir -p "$launcher_dir"
+
+  cat > "$launcher_file" <<EOF
+#!/usr/bin/env bash
+set -euo pipefail
+export OBSIDIAN_BRAIN_VAULT_ROOT="$VAULT_ROOT"
+exec node "$VAULT_ROOT/tools/vault-ai/cli.js" "\$@"
+EOF
+
+  chmod +x "$launcher_file"
+}
+
+run_vault_ai_setup() {
+  local install_cmd=("npm" "install")
+
+  if [ -f "$VAULT_ROOT/package-lock.json" ]; then
+    install_cmd=("npm" "ci")
+  fi
+
+  if [ "$DRY_RUN" -eq 1 ]; then
+    echo "dry-run: would install vault-ai dependencies in $VAULT_ROOT"
+    echo "  command: (cd \"$VAULT_ROOT\" && ${install_cmd[*]})"
+    echo "dry-run: would build initial vault-ai index"
+    echo "  command: (cd \"$VAULT_ROOT\" && npm run vault-ai:index)"
+    echo "dry-run: would run vault-ai smoke checks"
+    echo "  command: (cd \"$VAULT_ROOT\" && npm run vault-ai:health)"
+    echo "  command: (cd \"$VAULT_ROOT\" && npm run vault-ai:lint)"
+    return
+  fi
+
+  echo "Installing vault-ai dependencies..."
+  (
+    cd "$VAULT_ROOT"
+    "${install_cmd[@]}"
+  )
+
+  echo "Building initial vault-ai index..."
+  (
+    cd "$VAULT_ROOT"
+    npm run vault-ai:index
+  )
+
+  echo "Running vault-ai smoke checks..."
+  (
+    cd "$VAULT_ROOT"
+    npm run vault-ai:health
+    npm run vault-ai:lint
+  )
+}
+
+link_vault_ai_launcher() {
+  local source="$RENDER_DIR/bin/vault-ai"
+  local target="$VAULT_AI_LAUNCHER_PATH"
+
+  if [ "$DRY_RUN" -eq 1 ]; then
+    if [ -L "$target" ]; then
+      local current
+      current="$(readlink "$target")"
+      if [ "$current" = "$source" ]; then
+        echo "dry-run: ok, vault-ai launcher already correct: $target -> $source"
+      else
+        echo "dry-run: would update vault-ai launcher symlink: $target -> $source"
+      fi
+      return
+    fi
+
+    if [ -e "$target" ]; then
+      echo "dry-run: would skip existing non-symlink launcher target: $target"
+      return
+    fi
+
+    echo "dry-run: would create vault-ai launcher symlink: $target -> $source"
+    return
+  fi
+
+  mkdir -p "$LOCAL_BIN_DIR"
+
+  if [ -L "$target" ]; then
+    local current
+    current="$(readlink "$target")"
+    if [ "$current" = "$source" ]; then
+      echo "ok: $target -> $source"
+      return
+    fi
+    ln -sfn "$source" "$target"
+    echo "updated vault-ai launcher: $target -> $source"
+    return
+  fi
+
+  if [ -e "$target" ]; then
+    echo "skip: $target exists and is not a symlink"
+    return
+  fi
+
+  ln -s "$source" "$target"
+  echo "created vault-ai launcher: $target -> $source"
 }
 
 link_agent() {
@@ -419,6 +551,8 @@ show_summary() {
   echo "Rendered skill: $RENDER_DIR"
   echo "Selected agents: $(join_by ', ' "${AGENTS[@]}")"
   echo "Config file: $CONFIG_FILE"
+  echo "Vault AI launcher: $VAULT_AI_LAUNCHER_PATH"
+  echo "Vault AI report: $VAULT_ROOT/$LAST_INDEX_REPORT_REL"
   if [ "$DRY_RUN" -eq 1 ]; then
     echo "Mode: dry-run"
   fi
@@ -459,6 +593,9 @@ main() {
   validate_inputs
   preflight_cli
   render_template
+  render_vault_ai_launcher
+  run_vault_ai_setup
+  link_vault_ai_launcher
 
   for agent in "${AGENTS[@]}"; do
     link_agent "$agent"

@@ -14,7 +14,9 @@ Cross-agent skill for Claude Code, Codex, and OpenCode.
 - Global agent directories receive symlinks to the rendered skill.
 
 ## Core behavior
-- CLI first
+- `vault-ai` retrieval first
+- Obsidian CLI for canonical reads and writes
+- location-independent launcher for use outside the vault directory
 - Explicit vault targeting outside the vault
 - Filesystem only as fallback
 
@@ -29,4 +31,8 @@ Run:
 - Ask for vault name and vault path
 - Ask which agents should receive the skill
 - Render `SKILL.md` with local values
+- Install local `vault-ai` dependencies
+- Build the initial `vault-ai` index
+- Run `vault-ai` smoke checks
+- Render a machine-local `vault-ai` launcher and link it into `~/.local/bin/vault-ai`
 - Symlink the rendered skill into the selected agent directories

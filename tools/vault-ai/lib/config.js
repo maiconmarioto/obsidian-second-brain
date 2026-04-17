@@ -5,7 +5,7 @@ import YAML from 'yaml';
 import { DEFAULTS, fileExists } from './common.js';
 
 export function resolveRoot(cwd = process.cwd()) {
-  return cwd;
+  return process.env.OBSIDIAN_BRAIN_VAULT_ROOT || process.env.VAULT_AI_ROOT || cwd;
 }
 
 export function createPaths(root) {

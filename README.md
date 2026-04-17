@@ -44,6 +44,7 @@ Canonical source:
 
 ## Installer
 The installer renders a machine-local version of the skill and symlinks it into the selected agent directories.
+It also prepares the local `vault-ai` runtime for a clean machine bootstrap.
 
 Installer:
 - [06-ops/install-obsidian-brain-skill.sh](/Users/maiconmarioto/Documents/obsidian-second-brain/06-ops/install-obsidian-brain-skill.sh)
@@ -51,6 +52,7 @@ Installer:
 ### Requirements
 - Obsidian app installed
 - Obsidian CLI installed and configured
+- Node.js and npm installed
 
 ### Interactive install
 ```bash
@@ -101,6 +103,18 @@ Global agent symlinks are created only for the agents you select:
 Selection is additive:
 - selected agents are installed or updated
 - unselected agents are left untouched
+
+During installation the script also:
+- installs Node dependencies with `npm ci` when `package-lock.json` is present, otherwise `npm install`
+- builds the initial `vault-ai` index
+- runs `vault-ai:health` and `vault-ai:lint` as smoke checks
+- renders and links a machine-local `vault-ai` launcher for use from any working directory
+
+The latest index report is written to:
+- `.vault-ai/reports/last-index.json`
+
+The machine-local launcher is linked at:
+- `~/.local/bin/vault-ai`
 
 ## How to use this brain
 1. Open or keep Obsidian running.
