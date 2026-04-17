@@ -13,6 +13,7 @@ Use this skill when the task involves engineering memory, historical context, pr
 - Use `obsidian` CLI as the canonical read/write interface.
 - Do not depend on the current project `cwd` to find memory.
 - Outside the vault, always target the vault explicitly with `vault="__VAULT_NAME__"` in Obsidian CLI commands.
+- Before writing new durable memory that the user did not explicitly request, ask for confirmation.
 - Canonical notes must not contain temporary working-tree state.
 - If a fact will likely age after the next commit, deploy, or local experiment, it belongs in `sessions/`, not in canonical notes.
 
@@ -118,6 +119,7 @@ obsidian append vault="__VAULT_NAME__" path="01-projects/my-project/tasks.md" co
 - Do not reintroduce a generic personal PKM structure.
 - Do not assume `vault-ai` writes notes; it is for retrieval, packs, and operational checks.
 - Do not rely on being inside the vault directory; the launcher already targets the configured vault root.
+- If hooks ask whether a result should be persisted, ask the user once, then either write it or drop it.
 
 ## If vault-ai is unavailable
 - Confirm `__VAULT_AI_LAUNCHER__` exists and is executable.

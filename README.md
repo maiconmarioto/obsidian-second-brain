@@ -1,6 +1,6 @@
 # Obsidian Engineering Brain
 
-Structured Obsidian vault for software engineering work across multiple projects, with a shared CLI-first skill for Claude Code, Codex, and OpenCode.
+Structured Obsidian vault for software engineering work across multiple projects, with a shared CLI-first skill for Claude Code, Codex, OpenCode, and Kiro.
 
 ## What this is
 - A versioned Obsidian vault used as persistent engineering memory.
@@ -45,6 +45,7 @@ Canonical source:
 ## Installer
 The installer renders a machine-local version of the skill and symlinks it into the selected agent directories.
 It also prepares the local `vault-ai` runtime for a clean machine bootstrap.
+It now also installs hook-driven memory confirmation where the agent supports it.
 
 Installer:
 - [06-ops/install-obsidian-brain-skill.sh](/Users/maiconmarioto/Documents/obsidian-second-brain/06-ops/install-obsidian-brain-skill.sh)
@@ -66,6 +67,7 @@ The wizard asks for:
   - Claude Code
   - Codex
   - OpenCode
+  - Kiro
 
 Agent selection controls:
 - `↑/↓` move
@@ -77,7 +79,7 @@ Agent selection controls:
 /Users/maiconmarioto/Documents/obsidian-second-brain/06-ops/install-obsidian-brain-skill.sh \
   --vault-name obsidian-second-brain \
   --vault-root /Users/maiconmarioto/Documents/obsidian-second-brain \
-  --agents claude,codex,opencode \
+  --agents claude,codex,opencode,kiro \
   --non-interactive
 ```
 
@@ -99,6 +101,7 @@ Global agent symlinks are created only for the agents you select:
 - `~/.claude/skills/obsidian-brain`
 - `~/.codex/skills/obsidian-brain`
 - `~/.config/opencode/skills/obsidian-brain`
+- `~/.kiro/agents/obsidian-brain.json`
 
 Selection is additive:
 - selected agents are installed or updated
@@ -109,12 +112,24 @@ During installation the script also:
 - builds the initial `vault-ai` index
 - runs `vault-ai:health` and `vault-ai:lint` as smoke checks
 - renders and links a machine-local `vault-ai` launcher for use from any working directory
+- renders and links a machine-local `obsidian-brain-hook` launcher
+- installs Claude Code hooks in `~/.claude/settings.json`
+- enables Codex hooks in `~/.codex/config.toml` and installs `~/.codex/hooks.json`
+- installs a global OpenCode plugin in `~/.config/opencode/plugins/obsidian-brain-hooks.js`
+- renders a global Kiro custom agent with hooks at `~/.kiro/agents/obsidian-brain.json`
+
+### Hook coverage notes
+- Claude Code: strongest hook model here; memory confirmation can run at prompt submit, stop, and Bash write guard points.
+- Codex: hooks are now documented and installable, but current coverage is still centered on Bash interception and lifecycle events.
+- OpenCode: memory confirmation runs through a global plugin that reacts to session and tool events instead of a `hooks.json` file.
+- Kiro: support is delivered as a custom global agent with hook commands in the agent JSON.
 
 The latest index report is written to:
 - `.vault-ai/reports/last-index.json`
 
 The machine-local launcher is linked at:
 - `~/.local/bin/vault-ai`
+- `~/.local/bin/obsidian-brain-hook`
 
 If `~/.local/bin` is not in `PATH`, the installer prints the exact line to add to your shell rc file.
 

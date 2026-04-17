@@ -1,6 +1,6 @@
 # obsidian-brain
 
-Cross-agent skill for Claude Code, Codex, and OpenCode.
+Cross-agent memory layer for Claude Code, Codex, OpenCode, and Kiro.
 
 ## Purpose
 - Make agents consult the Obsidian engineering vault through the Obsidian CLI.
@@ -19,6 +19,7 @@ Cross-agent skill for Claude Code, Codex, and OpenCode.
 - location-independent launcher for use outside the vault directory
 - Explicit vault targeting outside the vault
 - Filesystem only as fallback
+- hook-assisted memory confirmation before durable writes
 
 ## Install
 Run:
@@ -35,4 +36,13 @@ Run:
 - Build the initial `vault-ai` index
 - Run `vault-ai` smoke checks
 - Render a machine-local `vault-ai` launcher and link it into `~/.local/bin/vault-ai`
-- Symlink the rendered skill into the selected agent directories
+- Render a machine-local hook launcher and link it into `~/.local/bin/obsidian-brain-hook`
+- Install hook integrations for Claude Code, Codex, and OpenCode
+- Render and install the `obsidian-brain` custom agent for Kiro
+- Symlink the rendered skill into the selected agent directories when the platform uses skill directories
+
+## Hook model by platform
+- Claude Code uses `~/.claude/settings.json`
+- Codex uses `~/.codex/config.toml` plus `~/.codex/hooks.json`
+- OpenCode uses a global plugin file under `~/.config/opencode/plugins/`
+- Kiro uses hook commands embedded in `~/.kiro/agents/obsidian-brain.json`

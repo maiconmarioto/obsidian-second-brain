@@ -13,7 +13,13 @@ CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/obsidian-brain"
 CONFIG_FILE="$CONFIG_DIR/config.env"
 LOCAL_BIN_DIR="${HOME}/.local/bin"
 VAULT_AI_LAUNCHER_PATH="$LOCAL_BIN_DIR/vault-ai"
+OBSIDIAN_BRAIN_HOOK_LAUNCHER_PATH="$LOCAL_BIN_DIR/obsidian-brain-hook"
 LAST_INDEX_REPORT_REL=".vault-ai/reports/last-index.json"
+CLAUDE_SETTINGS_PATH="$HOME/.claude/settings.json"
+CODEX_CONFIG_PATH="$HOME/.codex/config.toml"
+CODEX_HOOKS_PATH="$HOME/.codex/hooks.json"
+OPENCODE_PLUGIN_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/opencode/plugins"
+KIRO_AGENT_DIR="$HOME/.kiro/agents"
 
 AGENTS=()
 VAULT_NAME="${VAULT_NAME_DEFAULT}"
@@ -29,7 +35,7 @@ Usage:
 Options:
   --vault-name NAME         Vault name to use in Obsidian CLI commands
   --vault-root PATH         Absolute path to the target vault
-  --agents LIST             Comma-separated list: claude,codex,opencode
+  --agents LIST             Comma-separated list: claude,codex,opencode,kiro
   --non-interactive         Skip prompts and require values from flags or defaults
   --dry-run                 Show what would happen without writing files or links
   --help                    Show this help
@@ -80,6 +86,7 @@ agent_label() {
     claude) printf '%s' "Claude Code" ;;
     codex) printf '%s' "Codex" ;;
     opencode) printf '%s' "OpenCode" ;;
+    kiro) printf '%s' "Kiro" ;;
     *)
       echo "error: unsupported agent '$1'" >&2
       exit 1
@@ -118,7 +125,7 @@ agent_toggle() {
 
 print_header() {
   echo "== obsidian-brain installer =="
-  echo "Configure one machine-wide installation for Claude Code, Codex, and OpenCode."
+  echo "Configure one machine-wide installation for Claude Code, Codex, OpenCode, and Kiro."
   echo
 }
 
@@ -130,7 +137,7 @@ parse_agents_csv() {
   AGENTS=()
   for value in "${values[@]}"; do
     case "$value" in
-      claude|codex|opencode)
+      claude|codex|opencode|kiro)
         AGENTS+=("$value")
         ;;
       "")
@@ -156,7 +163,7 @@ prompt_text() {
 }
 
 prompt_agents() {
-  local options=("claude" "codex" "opencode")
+  local options=("claude" "codex" "opencode" "kiro")
   local current_index=0
   local key=""
   local option=""
@@ -167,7 +174,7 @@ prompt_agents() {
 
   if ! is_interactive_tty; then
     echo "error: interactive agent selection requires a TTY" >&2
-    echo "Use --non-interactive with --agents claude,codex,opencode when running without a terminal." >&2
+    echo "Use --non-interactive with --agents claude,codex,opencode,kiro when running without a terminal." >&2
     exit 1
   fi
 
@@ -176,7 +183,7 @@ prompt_agents() {
   while true; do
     clear_screen
     echo "== obsidian-brain installer =="
-    echo "Configure one machine-wide installation for Claude Code, Codex, and OpenCode."
+    echo "Configure one machine-wide installation for Claude Code, Codex, OpenCode, and Kiro."
     echo
     echo "Select agents:"
     echo "Use ↑/↓ to move, Space to toggle, Enter to confirm."
@@ -342,6 +349,7 @@ target_for_agent() {
     claude) printf '%s' "$HOME/.claude/skills/obsidian-brain" ;;
     codex) printf '%s' "$HOME/.codex/skills/obsidian-brain" ;;
     opencode) printf '%s' "$HOME/.config/opencode/skills/obsidian-brain" ;;
+    kiro) printf '%s' "$KIRO_AGENT_DIR/obsidian-brain.json" ;;
     *)
       echo "error: unsupported agent '$1'" >&2
       exit 1
@@ -385,6 +393,7 @@ Rendered local installation for this machine.
 - Vault name: $VAULT_NAME
 - Vault root: $VAULT_ROOT
 - Vault AI launcher: $VAULT_AI_LAUNCHER_PATH
+- Hook launcher: $OBSIDIAN_BRAIN_HOOK_LAUNCHER_PATH
 - Canonical source: $CANONICAL_SKILL_DIR
 EOF
 
@@ -395,6 +404,7 @@ AGENTS='$(join_by , "${AGENTS[@]}")'
 CANONICAL_SKILL_DIR='$CANONICAL_SKILL_DIR'
 RENDER_DIR='$RENDER_DIR'
 VAULT_AI_LAUNCHER_PATH='$VAULT_AI_LAUNCHER_PATH'
+OBSIDIAN_BRAIN_HOOK_LAUNCHER_PATH='$OBSIDIAN_BRAIN_HOOK_LAUNCHER_PATH'
 EOF
 }
 
@@ -418,6 +428,280 @@ exec node "$VAULT_ROOT/tools/vault-ai/cli.js" "\$@"
 EOF
 
   chmod +x "$launcher_file"
+}
+
+render_hook_launcher() {
+  local launcher_dir="$RENDER_DIR/bin"
+  local launcher_file="$launcher_dir/obsidian-brain-hook"
+
+  if [ "$DRY_RUN" -eq 1 ]; then
+    echo "dry-run: would render obsidian-brain hook launcher:"
+    echo "  output:   $launcher_file"
+    return
+  fi
+
+  mkdir -p "$launcher_dir"
+
+  cat > "$launcher_file" <<EOF
+#!/usr/bin/env bash
+set -euo pipefail
+export OBSIDIAN_BRAIN_VAULT_NAME="$VAULT_NAME"
+export OBSIDIAN_BRAIN_VAULT_ROOT="$VAULT_ROOT"
+exec node "$VAULT_ROOT/tools/obsidian-brain-hooks/cli.js" "\$@"
+EOF
+
+  chmod +x "$launcher_file"
+}
+
+render_opencode_plugin() {
+  local plugin_dir="$RENDER_DIR/opencode"
+  local plugin_file="$plugin_dir/obsidian-brain-hooks.js"
+  local hook_lib_path="$VAULT_ROOT/tools/obsidian-brain-hooks/lib.js"
+  local hook_lib_literal
+
+  hook_lib_literal="$(node -e 'console.log(JSON.stringify(process.argv[1]))' "$hook_lib_path")"
+
+  if [ "$DRY_RUN" -eq 1 ]; then
+    echo "dry-run: would render OpenCode plugin:"
+    echo "  output:   $plugin_file"
+    return
+  fi
+
+  mkdir -p "$plugin_dir"
+
+  cat > "$plugin_file" <<EOF
+const { evaluateHook } = await import(${hook_lib_literal});
+
+function firstText(value) {
+  if (!value) return "";
+  if (typeof value === "string") return value;
+  if (Array.isArray(value)) {
+    return value.map((entry) => firstText(entry)).filter(Boolean).join("\\n");
+  }
+  if (typeof value === "object") {
+    if (typeof value.text === "string") return value.text;
+    if (typeof value.message === "string") return value.message;
+    if (typeof value.content === "string") return value.content;
+    if (Array.isArray(value.parts)) return firstText(value.parts);
+    if (Array.isArray(value.result)) return firstText(value.result);
+  }
+  return "";
+}
+
+function pickSessionId(event) {
+  return (
+    event?.properties?.sessionID ||
+    event?.properties?.sessionId ||
+    event?.properties?.session_id ||
+    event?.properties?.id ||
+    event?.sessionID ||
+    event?.sessionId ||
+    event?.session_id ||
+    null
+  );
+}
+
+function pickRole(event) {
+  return (
+    event?.properties?.message?.role ||
+    event?.properties?.role ||
+    event?.role ||
+    null
+  );
+}
+
+function pickUserPrompt(event) {
+  return (
+    firstText(event?.properties?.message) ||
+    firstText(event?.properties?.parts) ||
+    firstText(event?.properties?.prompt) ||
+    ""
+  );
+}
+
+async function addContext(client, sessionId, text) {
+  if (!sessionId || !text) return;
+  await client.session.prompt({
+    path: { id: sessionId },
+    body: {
+      noReply: true,
+      parts: [{ type: "text", text }],
+    },
+  });
+}
+
+async function latestAssistantMessage(client, sessionId) {
+  const response = await client.session.messages({ path: { id: sessionId } });
+  const messages = response?.data ?? response ?? [];
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    const entry = messages[index];
+    const role = entry?.info?.role || entry?.role || null;
+    if (role !== "assistant") continue;
+    const text = firstText(entry?.parts) || firstText(entry?.info?.message) || firstText(entry?.info?.content);
+    if (text) return text;
+  }
+  return "";
+}
+
+export const ObsidianBrainHooks = async ({ client }) => {
+  return {
+    "tool.execute.before": async (input, output) => {
+      const result = evaluateHook({
+        platform: "opencode",
+        event: "preToolUse",
+        input: {
+          session_id: input?.sessionID || input?.sessionId || input?.session_id || "",
+          tool_name: input?.tool || input?.tool_name || "",
+          tool_input: output?.args || input?.args || {},
+        },
+        vaultName: "${VAULT_NAME}",
+        vaultRoot: "${VAULT_ROOT}",
+      });
+
+      if (result.type === "block") {
+        throw new Error(result.reason);
+      }
+    },
+
+    "tool.execute.after": async (input, output) => {
+      evaluateHook({
+        platform: "opencode",
+        event: "postToolUse",
+        input: {
+          session_id: input?.sessionID || input?.sessionId || input?.session_id || "",
+          tool_name: input?.tool || input?.tool_name || "",
+          tool_input: input?.args || {},
+          tool_response: output,
+        },
+        vaultName: "${VAULT_NAME}",
+        vaultRoot: "${VAULT_ROOT}",
+      });
+    },
+
+    event: async ({ event }) => {
+      const sessionId = pickSessionId(event);
+
+      if (event?.type === "session.created" && sessionId) {
+        const result = evaluateHook({
+          platform: "opencode",
+          event: "sessionStart",
+          input: { session_id: sessionId },
+          vaultName: "${VAULT_NAME}",
+          vaultRoot: "${VAULT_ROOT}",
+        });
+
+        if (result.type === "context") {
+          await addContext(client, sessionId, result.additionalContext);
+        }
+      }
+
+      if (event?.type === "message.updated" && sessionId && pickRole(event) === "user") {
+        const result = evaluateHook({
+          platform: "opencode",
+          event: "userPromptSubmit",
+          input: {
+            session_id: sessionId,
+            prompt: pickUserPrompt(event),
+          },
+          vaultName: "${VAULT_NAME}",
+          vaultRoot: "${VAULT_ROOT}",
+        });
+
+        if (result.type === "context") {
+          await addContext(client, sessionId, result.additionalContext);
+        }
+      }
+
+      if (event?.type === "session.idle" && sessionId) {
+        const lastAssistantMessage = await latestAssistantMessage(client, sessionId);
+        const result = evaluateHook({
+          platform: "opencode",
+          event: "stop",
+          input: {
+            session_id: sessionId,
+            last_assistant_message: lastAssistantMessage,
+          },
+          vaultName: "${VAULT_NAME}",
+          vaultRoot: "${VAULT_ROOT}",
+        });
+
+        if (result.type === "continue") {
+          await client.session.prompt({
+            path: { id: sessionId },
+            body: {
+              parts: [{ type: "text", text: result.reason }],
+            },
+          });
+        }
+      }
+    },
+  };
+};
+EOF
+}
+
+render_kiro_agent() {
+  local agent_dir="$RENDER_DIR/kiro"
+  local agent_file="$agent_dir/obsidian-brain.json"
+  local prompt_literal
+  local spawn_command
+  local prompt_command
+  local pretool_command
+  local posttool_command
+  local stop_command
+
+  prompt_literal="$(node -e 'console.log(JSON.stringify("file://" + encodeURI(process.argv[1]).replace(/#/g, "%23")))' "$RENDER_DIR/SKILL.md")"
+  spawn_command="$(node -e 'console.log(JSON.stringify(`"${process.argv[1]}" kiro agentSpawn`))' "$OBSIDIAN_BRAIN_HOOK_LAUNCHER_PATH")"
+  prompt_command="$(node -e 'console.log(JSON.stringify(`"${process.argv[1]}" kiro userPromptSubmit`))' "$OBSIDIAN_BRAIN_HOOK_LAUNCHER_PATH")"
+  pretool_command="$(node -e 'console.log(JSON.stringify(`"${process.argv[1]}" kiro preToolUse`))' "$OBSIDIAN_BRAIN_HOOK_LAUNCHER_PATH")"
+  posttool_command="$(node -e 'console.log(JSON.stringify(`"${process.argv[1]}" kiro postToolUse`))' "$OBSIDIAN_BRAIN_HOOK_LAUNCHER_PATH")"
+  stop_command="$(node -e 'console.log(JSON.stringify(`"${process.argv[1]}" kiro stop`))' "$OBSIDIAN_BRAIN_HOOK_LAUNCHER_PATH")"
+
+  if [ "$DRY_RUN" -eq 1 ]; then
+    echo "dry-run: would render Kiro agent:"
+    echo "  output:   $agent_file"
+    return
+  fi
+
+  mkdir -p "$agent_dir"
+
+  cat > "$agent_file" <<EOF
+{
+  "name": "obsidian-brain",
+  "description": "Use vault-ai and Obsidian CLI as external engineering memory regardless of the current project directory.",
+  "prompt": $prompt_literal,
+  "includeMcpJson": true,
+  "hooks": {
+    "agentSpawn": [
+      {
+        "command": $spawn_command
+      }
+    ],
+    "userPromptSubmit": [
+      {
+        "command": $prompt_command
+      }
+    ],
+    "preToolUse": [
+      {
+        "matcher": "execute_bash",
+        "command": $pretool_command
+      }
+    ],
+    "postToolUse": [
+      {
+        "matcher": "execute_bash",
+        "command": $posttool_command
+      }
+    ],
+    "stop": [
+      {
+        "command": $stop_command
+      }
+    ]
+  }
+}
+EOF
 }
 
 run_vault_ai_setup() {
@@ -506,6 +790,294 @@ link_vault_ai_launcher() {
   echo "created vault-ai launcher: $target -> $source"
 }
 
+link_hook_launcher() {
+  local source="$RENDER_DIR/bin/obsidian-brain-hook"
+  local target="$OBSIDIAN_BRAIN_HOOK_LAUNCHER_PATH"
+
+  if [ "$DRY_RUN" -eq 1 ]; then
+    if [ -L "$target" ]; then
+      local current
+      current="$(readlink "$target")"
+      if [ "$current" = "$source" ]; then
+        echo "dry-run: ok, hook launcher already correct: $target -> $source"
+      else
+        echo "dry-run: would update hook launcher symlink: $target -> $source"
+      fi
+      return
+    fi
+
+    if [ -e "$target" ]; then
+      echo "dry-run: would skip existing non-symlink hook target: $target"
+      return
+    fi
+
+    echo "dry-run: would create hook launcher symlink: $target -> $source"
+    return
+  fi
+
+  mkdir -p "$LOCAL_BIN_DIR"
+
+  if [ -L "$target" ]; then
+    local current
+    current="$(readlink "$target")"
+    if [ "$current" = "$source" ]; then
+      echo "ok: $target -> $source"
+      return
+    fi
+    ln -sfn "$source" "$target"
+    echo "updated hook launcher: $target -> $source"
+    return
+  fi
+
+  if [ -e "$target" ]; then
+    echo "skip: $target exists and is not a symlink"
+    return
+  fi
+
+  ln -s "$source" "$target"
+  echo "created hook launcher: $target -> $source"
+}
+
+merge_claude_settings_hooks() {
+  local hook_launcher="$OBSIDIAN_BRAIN_HOOK_LAUNCHER_PATH"
+
+  if [ "$DRY_RUN" -eq 1 ]; then
+    echo "dry-run: would merge Claude Code hooks into $CLAUDE_SETTINGS_PATH"
+    return
+  fi
+
+  mkdir -p "$(dirname "$CLAUDE_SETTINGS_PATH")"
+
+  node - <<'NODE' "$CLAUDE_SETTINGS_PATH" "$hook_launcher"
+import fs from 'node:fs';
+
+const [settingsPath, hookLauncher] = process.argv.slice(2);
+let settings = {};
+if (fs.existsSync(settingsPath)) {
+  settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
+}
+
+settings.hooks ||= {};
+
+function ensureHook(eventName, matcher, hook) {
+  settings.hooks[eventName] ||= [];
+  let group = settings.hooks[eventName].find((entry) => (entry.matcher ?? '') === matcher);
+  if (!group) {
+    group = { matcher, hooks: [] };
+    settings.hooks[eventName].push(group);
+  }
+  group.hooks ||= [];
+  const exists = group.hooks.some(
+    (entry) => entry.type === hook.type && entry.command === hook.command,
+  );
+  if (!exists) {
+    group.hooks.push(hook);
+  }
+}
+
+ensureHook('SessionStart', '', {
+  type: 'command',
+  command: `"${hookLauncher}" claude sessionstart`,
+});
+ensureHook('UserPromptSubmit', '', {
+  type: 'command',
+  command: `"${hookLauncher}" claude userpromptsubmit`,
+});
+ensureHook('PreToolUse', 'Bash', {
+  type: 'command',
+  command: `"${hookLauncher}" claude pretooluse`,
+});
+ensureHook('PostToolUse', 'Bash', {
+  type: 'command',
+  command: `"${hookLauncher}" claude posttooluse`,
+});
+ensureHook('Stop', '', {
+  type: 'command',
+  command: `"${hookLauncher}" claude stop`,
+});
+
+fs.writeFileSync(settingsPath, `${JSON.stringify(settings, null, 2)}\n`, 'utf8');
+NODE
+
+  echo "installed Claude Code hooks: $CLAUDE_SETTINGS_PATH"
+}
+
+ensure_codex_hooks_enabled() {
+  if [ "$DRY_RUN" -eq 1 ]; then
+    echo "dry-run: would enable codex_hooks in $CODEX_CONFIG_PATH"
+    return
+  fi
+
+  mkdir -p "$(dirname "$CODEX_CONFIG_PATH")"
+
+  node - <<'NODE' "$CODEX_CONFIG_PATH"
+import fs from 'node:fs';
+
+const [configPath] = process.argv.slice(2);
+let text = fs.existsSync(configPath) ? fs.readFileSync(configPath, 'utf8') : '';
+
+if (/^\s*codex_hooks\s*=\s*true\s*$/m.test(text)) {
+  process.exit(0);
+}
+
+if (/^\s*codex_hooks\s*=\s*false\s*$/m.test(text)) {
+  text = text.replace(/^\s*codex_hooks\s*=\s*false\s*$/m, 'codex_hooks = true');
+  fs.writeFileSync(configPath, text, 'utf8');
+  process.exit(0);
+}
+
+if (!/\[features\]/.test(text)) {
+  const suffix = text && !text.endsWith('\n') ? '\n' : '';
+  text = `${text}${suffix}[features]\ncodex_hooks = true\n`;
+  fs.writeFileSync(configPath, text, 'utf8');
+  process.exit(0);
+}
+
+const lines = text.split('\n');
+const next = [];
+let inserted = false;
+for (let index = 0; index < lines.length; index += 1) {
+  const line = lines[index];
+  next.push(line);
+  if (line.trim() === '[features]') {
+    let lookahead = index + 1;
+    let hasKey = false;
+    while (lookahead < lines.length && !/^\s*\[/.test(lines[lookahead])) {
+      if (/^\s*codex_hooks\s*=/.test(lines[lookahead])) {
+        hasKey = true;
+        break;
+      }
+      lookahead += 1;
+    }
+    if (!hasKey) {
+      next.push('codex_hooks = true');
+      inserted = true;
+    }
+  }
+}
+
+if (!inserted) {
+  next.push('[features]');
+  next.push('codex_hooks = true');
+}
+
+fs.writeFileSync(configPath, `${next.join('\n').replace(/\n+$/, '\n')}`, 'utf8');
+NODE
+
+  echo "enabled Codex hooks in: $CODEX_CONFIG_PATH"
+}
+
+install_codex_hooks() {
+  local hook_launcher="$OBSIDIAN_BRAIN_HOOK_LAUNCHER_PATH"
+
+  if [ "$DRY_RUN" -eq 1 ]; then
+    echo "dry-run: would install Codex hooks in $CODEX_HOOKS_PATH"
+    return
+  fi
+
+  mkdir -p "$(dirname "$CODEX_HOOKS_PATH")"
+
+  node - <<'NODE' "$CODEX_HOOKS_PATH" "$hook_launcher"
+import fs from 'node:fs';
+
+const [hooksPath, hookLauncher] = process.argv.slice(2);
+let config = {};
+if (fs.existsSync(hooksPath)) {
+  config = JSON.parse(fs.readFileSync(hooksPath, 'utf8'));
+}
+
+config.hooks ||= {};
+
+function ensureGroup(eventName, matcher, command) {
+  config.hooks[eventName] ||= [];
+  let group = config.hooks[eventName].find((entry) => (entry.matcher ?? '') === matcher);
+  if (!group) {
+    group = { matcher, hooks: [] };
+    config.hooks[eventName].push(group);
+  }
+  group.hooks ||= [];
+  const exists = group.hooks.some((entry) => entry.type === 'command' && entry.command === command);
+  if (!exists) {
+    group.hooks.push({ type: 'command', command });
+  }
+}
+
+ensureGroup('SessionStart', '', `"${hookLauncher}" codex sessionstart`);
+ensureGroup('UserPromptSubmit', '', `"${hookLauncher}" codex userpromptsubmit`);
+ensureGroup('PreToolUse', 'Bash', `"${hookLauncher}" codex pretooluse`);
+ensureGroup('PostToolUse', 'Bash', `"${hookLauncher}" codex posttooluse`);
+ensureGroup('Stop', '', `"${hookLauncher}" codex stop`);
+
+fs.writeFileSync(hooksPath, `${JSON.stringify(config, null, 2)}\n`, 'utf8');
+NODE
+
+  echo "installed Codex hooks: $CODEX_HOOKS_PATH"
+}
+
+install_opencode_plugin() {
+  local source="$RENDER_DIR/opencode/obsidian-brain-hooks.js"
+  local target="$OPENCODE_PLUGIN_DIR/obsidian-brain-hooks.js"
+
+  if [ "$DRY_RUN" -eq 1 ]; then
+    echo "dry-run: would install OpenCode plugin: $target -> $source"
+    return
+  fi
+
+  mkdir -p "$OPENCODE_PLUGIN_DIR"
+
+  if [ -L "$target" ]; then
+    local current
+    current="$(readlink "$target")"
+    if [ "$current" = "$source" ]; then
+      echo "ok: $target -> $source"
+      return
+    fi
+    ln -sfn "$source" "$target"
+    echo "updated OpenCode plugin: $target -> $source"
+    return
+  fi
+
+  if [ -e "$target" ]; then
+    echo "skip: $target exists and is not a symlink"
+    return
+  fi
+
+  ln -s "$source" "$target"
+  echo "created OpenCode plugin: $target -> $source"
+}
+
+install_kiro_agent() {
+  local source="$RENDER_DIR/kiro/obsidian-brain.json"
+  local target="$KIRO_AGENT_DIR/obsidian-brain.json"
+
+  if [ "$DRY_RUN" -eq 1 ]; then
+    echo "dry-run: would install Kiro agent: $target -> $source"
+    return
+  fi
+
+  mkdir -p "$KIRO_AGENT_DIR"
+
+  if [ -L "$target" ]; then
+    local current
+    current="$(readlink "$target")"
+    if [ "$current" = "$source" ]; then
+      echo "ok: $target -> $source"
+      return
+    fi
+    ln -sfn "$source" "$target"
+    echo "updated Kiro agent: $target -> $source"
+    return
+  fi
+
+  if [ -e "$target" ]; then
+    echo "skip: $target exists and is not a symlink"
+    return
+  fi
+
+  ln -s "$source" "$target"
+  echo "created Kiro agent: $target -> $source"
+}
+
 check_local_bin_path() {
   local path_entry
   local rc_file
@@ -528,6 +1100,12 @@ check_local_bin_path() {
 
 link_agent() {
   local agent="$1"
+
+  if [ "$agent" = "kiro" ]; then
+    install_kiro_agent
+    return
+  fi
+
   local target
   target="$(target_for_agent "$agent")"
 
@@ -575,6 +1153,29 @@ link_agent() {
   echo "created symlink: $target -> $RENDER_DIR"
 }
 
+install_agent_integrations() {
+  local agent="$1"
+  case "$agent" in
+    claude)
+      merge_claude_settings_hooks
+      ;;
+    codex)
+      ensure_codex_hooks_enabled
+      install_codex_hooks
+      ;;
+    opencode)
+      install_opencode_plugin
+      ;;
+    kiro)
+      :
+      ;;
+    *)
+      echo "error: unsupported agent '$agent'" >&2
+      exit 1
+      ;;
+  esac
+}
+
 show_summary() {
   local agent target
   echo
@@ -585,6 +1186,7 @@ show_summary() {
   echo "Selected agents: $(join_by ', ' "${AGENTS[@]}")"
   echo "Config file: $CONFIG_FILE"
   echo "Vault AI launcher: $VAULT_AI_LAUNCHER_PATH"
+  echo "Hook launcher: $OBSIDIAN_BRAIN_HOOK_LAUNCHER_PATH"
   echo "Vault AI report: $VAULT_ROOT/$LAST_INDEX_REPORT_REL"
   if [ "$DRY_RUN" -eq 1 ]; then
     echo "Mode: dry-run"
@@ -619,7 +1221,7 @@ main() {
   else
     print_header
     if [ ${#AGENTS[@]} -eq 0 ]; then
-      AGENTS=(claude codex opencode)
+      AGENTS=(claude codex opencode kiro)
     fi
   fi
 
@@ -627,11 +1229,16 @@ main() {
   preflight_cli
   render_template
   render_vault_ai_launcher
+  render_hook_launcher
+  render_opencode_plugin
+  render_kiro_agent
   run_vault_ai_setup
   link_vault_ai_launcher
+  link_hook_launcher
   check_local_bin_path
 
   for agent in "${AGENTS[@]}"; do
+    install_agent_integrations "$agent"
     link_agent "$agent"
   done
 
