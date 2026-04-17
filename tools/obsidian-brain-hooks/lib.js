@@ -10,6 +10,19 @@ const SAVE_INTENT_PATTERNS = [
   /\b(salva|salvar|registre|registrar|guarde|guardar|lembra|lembrar|atualiza|atualizar)\b.{0,40}\b(vault|obsidian|mem[oó]ria|brain|nota|notas)\b/i,
 ];
 
+const MEMORY_REFLECTION_PATTERNS = [
+  /\bwhat should i remember\b/i,
+  /\bwhat should we remember\b/i,
+  /\bwhat is the takeaway\b/i,
+  /\bwhat should i keep from this\b/i,
+  /\bwhat matters from this work\b/i,
+  /\bo que devo lembrar\b/i,
+  /\bo que devemos lembrar\b/i,
+  /\bqual (e|é) o aprendizado\b/i,
+  /\bo que vale guardar\b/i,
+  /\bo que importa guardar\b/i,
+];
+
 const AFFIRMATIVE_PATTERNS = [
   /^(sim|yes|y|ok|okay|pode|pode sim|salva|save|save it|go ahead|manda ver|segue|please do|pode salvar|pode atualizar)\b/i,
   /\b(can save|can update|you can save|you can update|salva isso|atualiza isso)\b/i,
@@ -24,6 +37,13 @@ const MEMORY_SIGNAL_PATTERNS = [
   /\b(decision|trade-?off|root cause|next step|benchmark|validation|regression|incident|postmortem|architecture|workflow|installer|hook|config)\b/i,
   /\b(decis[aã]o|pr[oó]ximo passo|causa raiz|benchmark|valida[cç][aã]o|regress[aã]o|incidente|arquitetura|workflow|instalador|gancho|hook|configura[cç][aã]o)\b/i,
   /\b(feat|fix|refactor|commit|benchmark|lint|health|index)\b/i,
+];
+
+const DELIVERY_SIGNAL_PATTERNS = [
+  /\b(completed|finished|delivered|implemented|shipped|validated|tested)\b/i,
+  /\b(feature|fix|plan|implementation|task|endpoint|service|installer|workflow)\b/i,
+  /\b(conclu[ií]do|finalizado|entregue|implementado|validado|testado)\b/i,
+  /\b(feature|corre[cç][aã]o|plano|implementa[cç][aã]o|tarefa|endpoint|servi[cç]o|instalador|fluxo)\b/i,
 ];
 
 const ALREADY_ASKING_PATTERNS = [
@@ -155,6 +175,10 @@ function isSaveIntent(prompt) {
   return SAVE_INTENT_PATTERNS.some((pattern) => pattern.test(prompt));
 }
 
+function isMemoryReflectionPrompt(prompt) {
+  return MEMORY_REFLECTION_PATTERNS.some((pattern) => pattern.test(prompt));
+}
+
 function isAffirmative(prompt) {
   return AFFIRMATIVE_PATTERNS.some((pattern) => pattern.test(prompt.trim()));
 }
@@ -175,6 +199,17 @@ function isMemoryCandidate(message) {
   if (/\/[A-Za-z0-9_.-]+/.test(message)) score += 1;
   if (/\b(pass(ed)?|ok|validat(ed|ion)|completed|implemented)\b/i.test(message)) score += 1;
 
+  return score >= 2;
+}
+
+function isDeliverySummary(message) {
+  if (!message || message.length < 120) return false;
+  let score = 0;
+  for (const pattern of DELIVERY_SIGNAL_PATTERNS) {
+    if (pattern.test(message)) score += 1;
+  }
+  if (/\b(next sensible step|next step|tradeoff|trade-off)\b/i.test(message)) score += 1;
+  if (/\b(pr[oó]ximo passo|tradeoff|trade-off)\b/i.test(message)) score += 1;
   return score >= 2;
 }
 
@@ -215,6 +250,10 @@ function explicitSaveContext() {
   return 'The user explicitly asked to save or update memory in the Obsidian vault. You may write to the vault in this turn.';
 }
 
+function memoryReflectionContext() {
+  return 'The user is explicitly asking what should be remembered from this work. Answer with the durable takeaways, and if there is durable engineering memory, offer in one short sentence to save it to the Obsidian vault.';
+}
+
 function writeBlockedReason() {
   return 'Before writing to the Obsidian vault, ask the user to confirm that this information should be persisted and where it belongs.';
 }
@@ -244,6 +283,8 @@ export function evaluateHook({ platform, event, input, vaultName, vaultRoot }) {
       } else if (isSaveIntent(prompt)) {
         state.confirmedUntil = now + DEFAULT_CONFIRM_TTL_MS;
         result = { type: 'context', additionalContext: explicitSaveContext() };
+      } else if (isMemoryReflectionPrompt(prompt)) {
+        result = { type: 'context', additionalContext: memoryReflectionContext() };
       }
     }
   }
@@ -272,7 +313,8 @@ export function evaluateHook({ platform, event, input, vaultName, vaultRoot }) {
   if (normalizedEvent === 'stop') {
     const message = normalizeAssistantMessage(input);
     const stopActive = Boolean(input?.stop_hook_active || input?.stopHookActive);
-    if (!stopActive && !state.pendingConfirmation && !isRecentPersistence(state, now) && isMemoryCandidate(message)) {
+    const shouldAskToPersist = isMemoryCandidate(message) || isDeliverySummary(message);
+    if (!stopActive && !state.pendingConfirmation && !isRecentPersistence(state, now) && shouldAskToPersist) {
       state.pendingConfirmation = true;
       result = { type: 'continue', reason: askToPersistReason() };
     }

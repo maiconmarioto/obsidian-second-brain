@@ -16,6 +16,7 @@ Use this skill when the task involves engineering memory, historical context, pr
 - Before writing new durable memory that the user did not explicitly request, ask for confirmation.
 - Canonical notes must not contain temporary working-tree state.
 - If a fact will likely age after the next commit, deploy, or local experiment, it belongs in `sessions/`, not in canonical notes.
+- When you finish delivering a feature, fix, or the user's requested plan, consider whether the durable outcome should be offered for vault persistence.
 
 ## Required vault
 - Vault name: `__VAULT_NAME__`
@@ -101,6 +102,8 @@ obsidian append vault="__VAULT_NAME__" path="01-projects/my-project/tasks.md" co
 - Do not leave consolidated information in `00-inbox`.
 - Keep canonical notes stable; keep transient repo state and temporary observations in `sessions/`.
 - When writing canonical notes, prefer structured fields such as `repo_path`, `production_url`, `baseline_commit`, `primary_stack`, and `next_action`.
+- When the user asks what should be remembered, what the takeaway is, or what should be kept from the work, treat that as a strong signal to offer a vault update.
+- At the end of a completed feature, fix, or implementation plan, ask once whether the durable result should be saved to the vault if the user did not already request it.
 
 ## Classification rules
 - `00-inbox`: raw capture, not consolidated

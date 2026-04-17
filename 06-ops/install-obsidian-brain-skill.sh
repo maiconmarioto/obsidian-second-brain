@@ -983,7 +983,8 @@ import fs from 'node:fs';
 const [hooksPath, hookLauncher] = process.argv.slice(2);
 let config = {};
 if (fs.existsSync(hooksPath)) {
-  config = JSON.parse(fs.readFileSync(hooksPath, 'utf8'));
+  const raw = fs.readFileSync(hooksPath, 'utf8').trim();
+  config = raw ? JSON.parse(raw) : {};
 }
 
 config.hooks ||= {};
