@@ -1196,6 +1196,18 @@ show_summary() {
       echo "  $target (not linked)"
     fi
   done
+
+  echo
+  echo "Recommended optional snippet for AGENTS.md or CLAUDE.md:"
+  cat <<EOF
+## Obsidian Memory
+Use the Obsidian engineering vault \`$VAULT_NAME\` as external long-term memory.
+
+- Prefer the installed \`obsidian-brain\` skill and \`vault-ai\` for retrieval.
+- When the task depends on prior decisions, shared patterns, project history, or reusable heuristics, consult the vault.
+- When finishing a feature, fix, or implementation plan, consider whether the durable outcome should be offered for persistence in the vault.
+- Do not write to the vault silently. Ask the user before saving durable memory unless they explicitly requested it.
+EOF
 }
 
 main() {
