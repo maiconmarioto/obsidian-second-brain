@@ -104,6 +104,7 @@ obsidian append vault="__VAULT_NAME__" path="01-projects/my-project/tasks.md" co
 - When writing canonical notes, prefer structured fields such as `repo_path`, `production_url`, `baseline_commit`, `primary_stack`, and `next_action`.
 - When the user asks what should be remembered, what the takeaway is, or what should be kept from the work, treat that as a strong signal to offer a vault update.
 - At the end of a completed feature, fix, or implementation plan, ask once whether the durable result should be saved to the vault if the user did not already request it.
+- Prefer this offer as normal conversational behavior from the skill rather than relying on a final stop-hook interruption.
 
 ## Classification rules
 - `00-inbox`: raw capture, not consolidated
@@ -123,6 +124,7 @@ obsidian append vault="__VAULT_NAME__" path="01-projects/my-project/tasks.md" co
 - Do not assume `vault-ai` writes notes; it is for retrieval, packs, and operational checks.
 - Do not rely on being inside the vault directory; the launcher already targets the configured vault root.
 - If hooks ask whether a result should be persisted, ask the user once, then either write it or drop it.
+- If the user already confirmed a vault update in the current turn, proceed with the write without asking again.
 
 ## If vault-ai is unavailable
 - Confirm `__VAULT_AI_LAUNCHER__` exists and is executable.

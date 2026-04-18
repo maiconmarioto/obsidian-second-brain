@@ -4,6 +4,7 @@ import path from 'node:path';
 
 const DEFAULT_CONFIRM_TTL_MS = 20 * 60 * 1000;
 const DEFAULT_PERSIST_COOLDOWN_MS = 2 * 60 * 1000;
+const DEFAULT_WRITE_ALLOWANCE = 3;
 
 const SAVE_INTENT_PATTERNS = [
   /\b(save|persist|record|remember|store|update)\b.{0,40}\b(vault|obsidian|memory|brain|note|notes)\b/i,
@@ -75,10 +76,10 @@ function normalizeSessionKey(platform, input) {
   const raw =
     input?.session_id ||
     input?.sessionId ||
-    input?.turn_id ||
-    input?.turnId ||
     input?.conversation_id ||
     input?.conversationId ||
+    input?.chat_id ||
+    input?.chatId ||
     'global';
   return `${platform}-${String(raw).replace(/[^a-zA-Z0-9._-]/g, '_')}`;
 }
@@ -106,6 +107,7 @@ function clearExpiredState(state, now) {
   const next = { ...state };
   if (next.confirmedUntil && next.confirmedUntil < now) {
     delete next.confirmedUntil;
+    delete next.allowedVaultWrites;
   }
   if (next.recentlyPersistedAt && now - next.recentlyPersistedAt > DEFAULT_PERSIST_COOLDOWN_MS) {
     delete next.recentlyPersistedAt;
@@ -218,7 +220,11 @@ function isRecentPersistence(state, now) {
 }
 
 function isConfirmed(state, now) {
-  return Boolean(state.confirmedUntil && state.confirmedUntil >= now);
+  return Boolean(
+    state.confirmedUntil &&
+      state.confirmedUntil >= now &&
+      Number(state.allowedVaultWrites || 0) > 0,
+  );
 }
 
 function isVaultWriteCommand(command) {
@@ -255,7 +261,26 @@ function memoryReflectionContext() {
 }
 
 function writeBlockedReason() {
-  return 'Before writing to the Obsidian vault, ask the user to confirm that this information should be persisted and where it belongs.';
+  return 'Before writing to the Obsidian vault, ask the user to confirm that this should be saved there.';
+}
+
+function shouldUseStopPrompt(platform) {
+  return String(platform || '').toLowerCase() !== 'codex';
+}
+
+function debugEnabled() {
+  return process.env.OBSIDIAN_BRAIN_HOOKS_DEBUG === '1';
+}
+
+function debugLog(sessionKey, payload) {
+  if (!debugEnabled()) return;
+  const logFile = path.join(defaultStateDir(), 'debug.log');
+  const entry = {
+    ts: new Date().toISOString(),
+    sessionKey,
+    ...payload,
+  };
+  fs.appendFileSync(logFile, `${JSON.stringify(entry)}\n`, 'utf8');
 }
 
 export function evaluateHook({ platform, event, input, vaultName, vaultRoot }) {
@@ -275,13 +300,16 @@ export function evaluateHook({ platform, event, input, vaultName, vaultRoot }) {
       if (state.pendingConfirmation && isAffirmative(prompt)) {
         delete state.pendingConfirmation;
         state.confirmedUntil = now + DEFAULT_CONFIRM_TTL_MS;
+        state.allowedVaultWrites = DEFAULT_WRITE_ALLOWANCE;
         result = { type: 'context', additionalContext: confirmationContext() };
       } else if (state.pendingConfirmation && isNegative(prompt)) {
         delete state.pendingConfirmation;
         delete state.confirmedUntil;
+        delete state.allowedVaultWrites;
         result = { type: 'context', additionalContext: rejectionContext() };
       } else if (isSaveIntent(prompt)) {
         state.confirmedUntil = now + DEFAULT_CONFIRM_TTL_MS;
+        state.allowedVaultWrites = DEFAULT_WRITE_ALLOWANCE;
         result = { type: 'context', additionalContext: explicitSaveContext() };
       } else if (isMemoryReflectionPrompt(prompt)) {
         result = { type: 'context', additionalContext: memoryReflectionContext() };
@@ -305,7 +333,13 @@ export function evaluateHook({ platform, event, input, vaultName, vaultRoot }) {
     const command = normalizeCommand(toolName, toolInput);
     if (command && isVaultWriteCommand(command)) {
       delete state.pendingConfirmation;
-      delete state.confirmedUntil;
+      if (Number(state.allowedVaultWrites || 0) > 0) {
+        state.allowedVaultWrites -= 1;
+      }
+      if (Number(state.allowedVaultWrites || 0) <= 0) {
+        delete state.allowedVaultWrites;
+        delete state.confirmedUntil;
+      }
       state.recentlyPersistedAt = now;
     }
   }
@@ -314,12 +348,26 @@ export function evaluateHook({ platform, event, input, vaultName, vaultRoot }) {
     const message = normalizeAssistantMessage(input);
     const stopActive = Boolean(input?.stop_hook_active || input?.stopHookActive);
     const shouldAskToPersist = isMemoryCandidate(message) || isDeliverySummary(message);
-    if (!stopActive && !state.pendingConfirmation && !isRecentPersistence(state, now) && shouldAskToPersist) {
+    if (
+      shouldUseStopPrompt(platform) &&
+      !stopActive &&
+      !state.pendingConfirmation &&
+      !isRecentPersistence(state, now) &&
+      shouldAskToPersist
+    ) {
       state.pendingConfirmation = true;
       result = { type: 'continue', reason: askToPersistReason() };
     }
   }
 
+  debugLog(sessionKey, {
+    platform,
+    event: normalizedEvent,
+    resultType: result.type,
+    pendingConfirmation: Boolean(state.pendingConfirmation),
+    allowedVaultWrites: Number(state.allowedVaultWrites || 0),
+    confirmedUntil: state.confirmedUntil || null,
+  });
   writeState(sessionKey, state);
   return result;
 }
@@ -402,7 +450,7 @@ export function formatHookResponse({ platform, event, result }) {
     }
 
     if (normalizedEvent === 'stop') {
-      return result.type === 'continue' ? { decision: 'block', reason: result.reason } : {};
+      return {};
     }
 
     if ((normalizedEvent === 'sessionstart' || normalizedEvent === 'userpromptsubmit') && result.type === 'context') {

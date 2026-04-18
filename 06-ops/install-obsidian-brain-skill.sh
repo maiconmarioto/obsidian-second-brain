@@ -530,19 +530,6 @@ async function addContext(client, sessionId, text) {
   });
 }
 
-async function latestAssistantMessage(client, sessionId) {
-  const response = await client.session.messages({ path: { id: sessionId } });
-  const messages = response?.data ?? response ?? [];
-  for (let index = messages.length - 1; index >= 0; index -= 1) {
-    const entry = messages[index];
-    const role = entry?.info?.role || entry?.role || null;
-    if (role !== "assistant") continue;
-    const text = firstText(entry?.parts) || firstText(entry?.info?.message) || firstText(entry?.info?.content);
-    if (text) return text;
-  }
-  return "";
-}
-
 export const ObsidianBrainHooks = async ({ client }) => {
   return {
     "tool.execute.before": async (input, output) => {
@@ -612,28 +599,6 @@ export const ObsidianBrainHooks = async ({ client }) => {
         }
       }
 
-      if (event?.type === "session.idle" && sessionId) {
-        const lastAssistantMessage = await latestAssistantMessage(client, sessionId);
-        const result = evaluateHook({
-          platform: "opencode",
-          event: "stop",
-          input: {
-            session_id: sessionId,
-            last_assistant_message: lastAssistantMessage,
-          },
-          vaultName: "${VAULT_NAME}",
-          vaultRoot: "${VAULT_ROOT}",
-        });
-
-        if (result.type === "continue") {
-          await client.session.prompt({
-            path: { id: sessionId },
-            body: {
-              parts: [{ type: "text", text: result.reason }],
-            },
-          });
-        }
-      }
     },
   };
 };
@@ -875,6 +840,21 @@ function ensureHook(eventName, matcher, hook) {
   }
 }
 
+function removeHookCommand(eventName, command) {
+  if (!Array.isArray(settings.hooks[eventName])) {
+    return;
+  }
+  settings.hooks[eventName] = settings.hooks[eventName]
+    .map((group) => ({
+      ...group,
+      hooks: (group.hooks || []).filter((entry) => entry.command !== command),
+    }))
+    .filter((group) => (group.hooks || []).length > 0);
+  if (settings.hooks[eventName].length === 0) {
+    delete settings.hooks[eventName];
+  }
+}
+
 ensureHook('SessionStart', '', {
   type: 'command',
   command: `"${hookLauncher}" claude sessionstart`,
@@ -891,10 +871,7 @@ ensureHook('PostToolUse', 'Bash', {
   type: 'command',
   command: `"${hookLauncher}" claude posttooluse`,
 });
-ensureHook('Stop', '', {
-  type: 'command',
-  command: `"${hookLauncher}" claude stop`,
-});
+removeHookCommand('Stop', `"${hookLauncher}" claude stop`);
 
 fs.writeFileSync(settingsPath, `${JSON.stringify(settings, null, 2)}\n`, 'utf8');
 NODE
@@ -1003,11 +980,26 @@ function ensureGroup(eventName, matcher, command) {
   }
 }
 
+function removeCommand(eventName, command) {
+  if (!Array.isArray(config.hooks[eventName])) {
+    return;
+  }
+  config.hooks[eventName] = config.hooks[eventName]
+    .map((group) => ({
+      ...group,
+      hooks: (group.hooks || []).filter((entry) => entry.command !== command),
+    }))
+    .filter((group) => (group.hooks || []).length > 0);
+  if (config.hooks[eventName].length === 0) {
+    delete config.hooks[eventName];
+  }
+}
+
 ensureGroup('SessionStart', '', `"${hookLauncher}" codex sessionstart`);
 ensureGroup('UserPromptSubmit', '', `"${hookLauncher}" codex userpromptsubmit`);
 ensureGroup('PreToolUse', 'Bash', `"${hookLauncher}" codex pretooluse`);
 ensureGroup('PostToolUse', 'Bash', `"${hookLauncher}" codex posttooluse`);
-ensureGroup('Stop', '', `"${hookLauncher}" codex stop`);
+removeCommand('Stop', `"${hookLauncher}" codex stop`);
 
 fs.writeFileSync(hooksPath, `${JSON.stringify(config, null, 2)}\n`, 'utf8');
 NODE
