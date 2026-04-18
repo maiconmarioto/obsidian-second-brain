@@ -12,6 +12,3 @@
 # Local toolkit artifacts
 node_modules/
 .vault-ai/
-
-# Local project memory should stay private to this machine
-01-projects/
