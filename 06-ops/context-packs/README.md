@@ -22,11 +22,11 @@ tags:
 - Packs should prefer canonical notes first and only pull `sessions/` when continuity or volatile facts are required.
 
 ## Current packs
-- [project-working-set.md](/Users/maiconmarioto/Documents/obsidian-second-brain/06-ops/context-packs/project-working-set.md)
-- [meeting-continuity.md](/Users/maiconmarioto/Documents/obsidian-second-brain/06-ops/context-packs/meeting-continuity.md)
-- [research-brief.md](/Users/maiconmarioto/Documents/obsidian-second-brain/06-ops/context-packs/research-brief.md)
-- [release-prep.md](/Users/maiconmarioto/Documents/obsidian-second-brain/06-ops/context-packs/release-prep.md)
-- [incident-context.md](/Users/maiconmarioto/Documents/obsidian-second-brain/06-ops/context-packs/incident-context.md)
+- [project-working-set.md](project-working-set.md)
+- [meeting-continuity.md](meeting-continuity.md)
+- [research-brief.md](research-brief.md)
+- [release-prep.md](release-prep.md)
+- [incident-context.md](incident-context.md)
 
 ## Design rules
 - Seed from `index.md` and `tasks.md` whenever a project or workstream exists.

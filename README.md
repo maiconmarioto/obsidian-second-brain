@@ -1,147 +1,160 @@
 # Obsidian Engineering Brain
 
-Structured Obsidian vault for software engineering work across multiple projects, with a shared CLI-first skill for Claude Code, Codex, OpenCode, and Kiro.
+Local-first engineering memory for multi-project software work, designed for human operators and coding agents that need reliable context, retrieval discipline, and durable decision records.
 
-## What this is
-- A versioned Obsidian vault used as persistent engineering memory.
-- Optimized for project-local execution and cross-project workstreams.
-- Designed so agents consult memory through the Obsidian CLI instead of relying on the current repository directory.
+## Overview
+This repository defines a structured Obsidian vault used as persistent engineering memory across projects, workstreams, and shared operational standards. It is built for teams and individuals who want agents to retrieve canonical context intentionally instead of inferring state from whichever repository happens to be open.
 
-## Core ideas
-- `01-projects/` holds local context for a single project, service, repo, or product surface.
-- `02-workstreams/` holds initiatives that affect multiple projects.
-- `03-shared-knowledge/` holds reusable engineering knowledge.
-- `04-shared-decisions/` holds decisions and standards that apply beyond one project.
-- `05-templates/` holds note templates.
-- `06-ops/` holds vault operations, docs, and the canonical skill source.
+The vault combines a disciplined information architecture with a CLI-first operating model:
+- `vault-ai` provides compact retrieval, indexing, linting, and context-pack assembly.
+- The Obsidian CLI remains the canonical interface for reading and writing notes.
+- A shared `obsidian-brain` skill aligns supported agents on the same memory contract.
+- Hook integrations add optional confirmation before durable memory writes.
 
-## Vault structure
-```text
-.
-├── INDEX.md
-├── AGENT_PROTOCOL.md
-├── 00-inbox/
-├── 01-projects/
-├── 02-workstreams/
-├── 03-shared-knowledge/
-├── 04-shared-decisions/
-├── 05-templates/
-└── 06-ops/
-```
+## Design Goals
+- Keep engineering memory outside individual repositories and terminal sessions.
+- Separate canonical knowledge from transient execution history.
+- Support project-local work without losing cross-project continuity.
+- Make agent retrieval deterministic, explicit, and token-efficient.
+- Preserve a single operational model across multiple agent runtimes.
 
-## Agent skill
-The shared skill is `obsidian-brain`.
+## Repository Model
+The vault is organized around durable engineering use cases rather than generic PKM categories.
 
-Its job is to make agents:
-- treat Obsidian as external persistent engineering memory
-- use `obsidian` CLI as the primary interface
-- target the vault explicitly outside the vault directory
-- avoid using `cwd` as the mechanism for memory discovery
+- `00-inbox/`: raw capture and unconsolidated intake.
+- `01-projects/`: execution context for a single product, service, repository, or surface area.
+- `02-workstreams/`: initiatives that span multiple projects.
+- `03-shared-knowledge/`: reusable engineering knowledge and patterns.
+- `04-shared-decisions/`: standards, policies, and cross-project decisions.
+- `05-templates/`: note templates for repeatable structure.
+- `06-ops/`: operational tooling, installer assets, context packs, governance, and the canonical skill source.
 
-Canonical source:
-- [06-ops/skills/obsidian-brain/README.md](/Users/maiconmarioto/Documents/obsidian-second-brain/06-ops/skills/obsidian-brain/README.md)
-- [06-ops/skills/obsidian-brain/SKILL.template.md](/Users/maiconmarioto/Documents/obsidian-second-brain/06-ops/skills/obsidian-brain/SKILL.template.md)
+Core protocol documents:
+- [INDEX.md](INDEX.md)
+- [AGENT_PROTOCOL.md](AGENT_PROTOCOL.md)
+- [04-shared-decisions/0001-vault-structure.md](04-shared-decisions/0001-vault-structure.md)
 
-## Installer
-The installer renders a machine-local version of the skill and symlinks it into the selected agent directories.
-It also prepares the local `vault-ai` runtime for a clean machine bootstrap.
-It now also installs hook-driven memory confirmation where the agent supports it.
+## Capabilities
+This vault is more than a note repository. It is an operational memory layer with installable tooling and agent integration.
 
-Installer:
-- [06-ops/install-obsidian-brain-skill.sh](/Users/maiconmarioto/Documents/obsidian-second-brain/06-ops/install-obsidian-brain-skill.sh)
+### Shared Agent Skill
+The canonical skill source is `obsidian-brain`, maintained in:
+- [06-ops/skills/obsidian-brain/README.md](06-ops/skills/obsidian-brain/README.md)
+- [06-ops/skills/obsidian-brain/SKILL.template.md](06-ops/skills/obsidian-brain/SKILL.template.md)
+
+The skill standardizes how agents should behave:
+- treat the vault as external persistent engineering memory
+- retrieve via `vault-ai` first when available
+- read and write through the Obsidian CLI
+- target the vault explicitly instead of depending on `cwd`
+- distinguish canonical notes from volatile session state
+- request confirmation before writing new durable memory when the user did not ask for it explicitly
+
+### Retrieval and Context Assembly
+The local toolkit under `tools/vault-ai/` provides:
+- compact full-text retrieval against the vault
+- frontmatter and structural linting
+- health checks for the local runtime
+- context-pack assembly for recurring workflows
+- index generation for repeatable local bootstrap
+
+Context packs are documented in:
+- [06-ops/context-packs/README.md](06-ops/context-packs/README.md)
+
+### Multi-Agent Runtime Support
+The installer provisions a machine-local runtime for these agent environments:
+- Claude Code
+- Codex
+- OpenCode
+- Kiro
+
+It renders local configuration, links the shared skill where applicable, prepares launchers, and installs the relevant hook integration model for each platform.
+
+## Installation
+The canonical installer is:
+- [06-ops/install-obsidian-brain-skill.sh](06-ops/install-obsidian-brain-skill.sh)
 
 ### Requirements
-- Obsidian app installed
+- Obsidian desktop application
 - Obsidian CLI installed and configured
-- Node.js and npm installed
+- Node.js and npm
 
-### Interactive install
+### Standard Install
+Run from the repository root:
+
 ```bash
-/Users/maiconmarioto/Documents/obsidian-second-brain/06-ops/install-obsidian-brain-skill.sh
+./06-ops/install-obsidian-brain-skill.sh
 ```
 
-The wizard asks for:
-- vault name
-- vault path
-- which agents to install for:
-  - Claude Code
-  - Codex
-  - OpenCode
-  - Kiro
+### Non-Interactive Install
+For automated or repeatable setup:
 
-Agent selection controls:
-- `↑/↓` move
-- `Space` toggles selection
-- `Enter` confirms
-
-### Non-interactive install
 ```bash
-/Users/maiconmarioto/Documents/obsidian-second-brain/06-ops/install-obsidian-brain-skill.sh \
+./06-ops/install-obsidian-brain-skill.sh \
   --vault-name obsidian-second-brain \
-  --vault-root /Users/maiconmarioto/Documents/obsidian-second-brain \
+  --vault-root "/absolute/path/to/obsidian-second-brain" \
   --agents claude,codex,opencode,kiro \
   --non-interactive
 ```
 
-### Dry run
-Use this to simulate the install without writing files or changing symlinks:
+### Dry Run
+Use a dry run to validate the setup path and generated actions before writing anything locally:
 
 ```bash
-/Users/maiconmarioto/Documents/obsidian-second-brain/06-ops/install-obsidian-brain-skill.sh --dry-run
+./06-ops/install-obsidian-brain-skill.sh --dry-run
 ```
 
-### Rendered local install
-The rendered machine-local skill is stored outside the repository:
+## What the Installer Provisions
+The installer prepares a reusable, machine-local runtime rather than coupling operation to the repository checkout.
+
+It will:
+- render a machine-local copy of the `obsidian-brain` skill
+- prepare local `vault-ai` dependencies
+- build the initial search index
+- run smoke checks for health and linting
+- install `vault-ai` and `obsidian-brain-hook` launchers into `~/.local/bin`
+- write installer configuration into `~/.config/obsidian-brain/config.env`
+- integrate hooks or equivalent event handling for supported agents
+
+Typical local install targets include:
 - `~/.local/share/obsidian-brain/current/`
-
-Installer config is stored at:
-- `~/.config/obsidian-brain/config.env`
-
-Global agent symlinks are created only for the agents you select:
 - `~/.claude/skills/obsidian-brain`
 - `~/.codex/skills/obsidian-brain`
 - `~/.config/opencode/skills/obsidian-brain`
 - `~/.kiro/agents/obsidian-brain.json`
 
-Selection is additive:
-- selected agents are installed or updated
-- unselected agents are left untouched
-
-During installation the script also:
-- installs Node dependencies with `npm ci` when `package-lock.json` is present, otherwise `npm install`
-- builds the initial `vault-ai` index
-- runs `vault-ai:health` and `vault-ai:lint` as smoke checks
-- renders and links a machine-local `vault-ai` launcher for use from any working directory
-- renders and links a machine-local `obsidian-brain-hook` launcher
-- installs Claude Code hooks in `~/.claude/settings.json`
-- enables Codex hooks in `~/.codex/config.toml` and installs `~/.codex/hooks.json`
-- installs a global OpenCode plugin in `~/.config/opencode/plugins/obsidian-brain-hooks.js`
-- renders a global Kiro custom agent with hooks at `~/.kiro/agents/obsidian-brain.json`
-
-### Hook coverage notes
-- Claude Code: strongest hook model here; memory confirmation can run at prompt submit, stop, and Bash write guard points.
-- Codex: hooks are now documented and installable, but current coverage is still centered on Bash interception and lifecycle events.
-- OpenCode: memory confirmation runs through a global plugin that reacts to session and tool events instead of a `hooks.json` file.
-- Kiro: support is delivered as a custom global agent with hook commands in the agent JSON.
-
 The latest index report is written to:
 - `.vault-ai/reports/last-index.json`
 
-The machine-local launcher is linked at:
-- `~/.local/bin/vault-ai`
-- `~/.local/bin/obsidian-brain-hook`
+## Hook Model
+Hook support is platform-specific and intentionally follows each tool's native integration model.
 
-If `~/.local/bin` is not in `PATH`, the installer prints the exact line to add to your shell rc file.
+- Claude Code: prompt, stop, and Bash-oriented interception for memory confirmation.
+- Codex: lifecycle and Bash-centered interception through its documented hook surfaces.
+- OpenCode: plugin-driven event handling instead of a standalone `hooks.json`.
+- Kiro: custom agent delivery with embedded hook commands.
 
-## How to use this brain
-1. Open or keep Obsidian running.
-2. Work inside any repository you want.
-3. Let your agent use `obsidian vault="<vault-name>" ...` to consult memory.
-4. Keep project-local notes in `01-projects/`.
-5. Use `02-workstreams/` when work affects multiple projects.
-6. Promote reusable knowledge and cross-project decisions into shared folders.
+## Operating Model
+Recommended usage is straightforward:
+- keep Obsidian as the durable memory system, not the current repository
+- use `vault-ai` to locate the smallest canonical context that answers the task
+- use the Obsidian CLI to open or update the exact note that should change
+- capture project-local execution in `01-projects/`
+- coordinate multi-project initiatives in `02-workstreams/`
+- promote stable knowledge and standards into shared areas
 
-## Recommended next steps
-- Create your first real project in `01-projects/`.
-- Create your first real workstream in `02-workstreams/`.
-- Keep `INDEX.md` and `AGENT_PROTOCOL.md` current as the vault evolves.
+This model is formalized in:
+- [AGENT_PROTOCOL.md](AGENT_PROTOCOL.md)
+- [06-ops/obsidian-brain-skill.md](06-ops/obsidian-brain-skill.md)
+
+## Why This Structure Works
+- Retrieval stays explicit and reproducible instead of being inferred from directory state.
+- Cross-project memory remains durable even as repositories move or disappear.
+- Agent behavior becomes consistent across runtimes because the skill, installer, and vault protocol are aligned.
+- Canonical notes remain cleaner because transient execution history is isolated in `sessions/`.
+- Local-first tooling keeps the system portable and auditable without requiring a hosted memory backend.
+
+## Additional References
+- [06-ops/skills/obsidian-brain/README.md](06-ops/skills/obsidian-brain/README.md)
+- [06-ops/context-packs/README.md](06-ops/context-packs/README.md)
+- [06-ops/vault-ai/governance/retrieval-governance.v1.json](06-ops/vault-ai/governance/retrieval-governance.v1.json)

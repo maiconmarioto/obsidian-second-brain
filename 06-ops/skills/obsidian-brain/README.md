@@ -25,7 +25,7 @@ Cross-agent memory layer for Claude Code, Codex, OpenCode, and Kiro.
 Run:
 
 ```bash
-/Users/maiconmarioto/Documents/obsidian-second-brain/06-ops/install-obsidian-brain-skill.sh
+./06-ops/install-obsidian-brain-skill.sh
 ```
 
 ## Installer responsibilities

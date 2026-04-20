@@ -25,7 +25,7 @@ tags:
   - CLI-first retrieval discipline for agents
 
 ## What this vault already does well
-- The vault model in [04-shared-decisions/0001-vault-structure.md](/Users/maiconmarioto/Documents/obsidian-second-brain/04-shared-decisions/0001-vault-structure.md) is ahead of most Obsidian + AI setups on information architecture.
+- The vault model in [04-shared-decisions/0001-vault-structure.md](../04-shared-decisions/0001-vault-structure.md) is ahead of most Obsidian + AI setups on information architecture.
 - The split between canonical notes and `sessions/` maps well to the memory-layer thinking now showing up in Letta, Mem0, and recent agent-memory papers.
 - Frontmatter discipline is already decent for a young vault.
 
