@@ -32,27 +32,34 @@ Use this skill when the task involves engineering memory, historical context, pr
 6. Use direct filesystem reads only if both `vault-ai` and the verified Obsidian CLI path are unavailable.
 
 ## Minimal handshake
-If you are uncertain about the local environment, verify only this minimal surface before trusting the skill:
+Before the first real read or write in a new environment, run this minimal preflight:
 1. `node --version`
 2. `npm --version`
 3. `obsidian version`
-4. `obsidian help`
+4. `obsidian read "vault=__VAULT_NAME__" "path=INDEX.md"`
 
-Use the minimal handshake only when needed. Do not turn every use of this skill into a full environment audit.
+If step 3 fails, the Obsidian CLI is missing or broken. If step 4 fails, stop early and say that the Obsidian app may not be running, the CLI may not be registered, or the vault name may be wrong.
+
+Use this preflight only when needed. Do not turn every use of this skill into a full environment audit.
 
 ## First reads
 Before making structural decisions or writing notes, read:
-1. `obsidian read vault="__VAULT_NAME__" path="INDEX.md"`
-2. `obsidian read vault="__VAULT_NAME__" path="AGENT_PROTOCOL.md"`
-3. `obsidian read vault="__VAULT_NAME__" path="04-shared-decisions/0001-vault-structure.md"`
+1. `obsidian read "vault=__VAULT_NAME__" "path=INDEX.md"`
+2. `obsidian read "vault=__VAULT_NAME__" "path=AGENT_PROTOCOL.md"`
+3. `obsidian read "vault=__VAULT_NAME__" "path=04-shared-decisions/0001-vault-structure.md"`
 
 ## Retrieval strategy
-1. Start with `__VAULT_AI_LAUNCHER__ search --compact "<query>"`.
+1. Start with `__VAULT_AI_LAUNCHER__ search --compact -- '<query>'`.
 2. Read the top canonical hits with `obsidian read`.
-3. If the task is recurring, try `__VAULT_AI_LAUNCHER__ pack-build <pack-id> ...` before manually reading many notes.
+3. If the task is recurring, try `__VAULT_AI_LAUNCHER__ pack-build '<pack-id>' ...` before manually reading many notes.
 4. Use `obsidian files` and `obsidian folders` only when you need structural confirmation.
 5. Read `sessions/` only if canonical notes are insufficient.
 6. Only after that, answer, plan, or write.
+
+## Shell quoting rule
+- Quote the full `key=value` token in Obsidian CLI calls: `obsidian read "vault=__VAULT_NAME__" "path=INDEX.md"`.
+- Quote positional `vault-ai` inputs directly and use `--` before free-text queries: `__VAULT_AI_LAUNCHER__ search --compact -- 'payments retry policy'`.
+- Do not depend on helper wrappers, token compressors, `rtk`, or shell tricks to make examples shorter.
 
 ## AI-first retrieval policy
 - Optimize for token efficiency, not human browsing.
@@ -71,32 +78,34 @@ Before making structural decisions or writing notes, read:
 Run from any working directory:
 
 ```bash
-__VAULT_AI_LAUNCHER__ search --compact "payments"
-__VAULT_AI_LAUNCHER__ pack-build project-working-set --project coziva --budget medium
+__VAULT_AI_LAUNCHER__ search --compact -- 'payments'
+__VAULT_AI_LAUNCHER__ pack-build 'project-working-set' --project 'coziva' --budget medium
 __VAULT_AI_LAUNCHER__ health
 __VAULT_AI_LAUNCHER__ lint-frontmatter
+__VAULT_AI_LAUNCHER__ project-init 'my-project' --title 'My Project'
 ```
 
 Use Obsidian CLI to open returned notes:
 
 ```bash
-obsidian read vault="__VAULT_NAME__" path="AGENT_PROTOCOL.md"
-obsidian read vault="__VAULT_NAME__" path="01-projects/coziva/index.md"
-obsidian files vault="__VAULT_NAME__" folder="01-projects"
-obsidian folders vault="__VAULT_NAME__" folder="02-workstreams"
+obsidian read "vault=__VAULT_NAME__" "path=AGENT_PROTOCOL.md"
+obsidian read "vault=__VAULT_NAME__" "path=01-projects/coziva/index.md"
+obsidian files "vault=__VAULT_NAME__" "folder=01-projects"
+obsidian folders "vault=__VAULT_NAME__" "folder=02-workstreams"
 ```
 
 When writing:
 
 ```bash
-obsidian create vault="__VAULT_NAME__" path="00-inbox/example.md" content="# Example"
-obsidian append vault="__VAULT_NAME__" path="01-projects/my-project/tasks.md" content="- [ ] Next task"
+obsidian create "vault=__VAULT_NAME__" "path=00-inbox/example.md" "content=# Example"
+obsidian append "vault=__VAULT_NAME__" "path=01-projects/my-project/tasks.md" "content=- [ ] Next task"
 ```
 
 ## Operating rules
 - If work is local to one project, operate inside that project.
 - If work spans multiple projects, create or use a workstream.
 - Keep sessions inside the project or workstream they belong to.
+- When starting a new project note set, prefer `__VAULT_AI_LAUNCHER__ project-init '<slug>' --title '<Title>'` instead of manual folder bootstrap.
 - Promote reusable knowledge to `03-shared-knowledge`.
 - Promote cross-project standards or choices to `04-shared-decisions`.
 - Do not leave consolidated information in `00-inbox`.
@@ -124,7 +133,7 @@ obsidian append vault="__VAULT_NAME__" path="01-projects/my-project/tasks.md" co
 - Do not assume `vault-ai` writes notes; it is for retrieval, packs, and operational checks.
 - Do not rely on being inside the vault directory; the launcher already targets the configured vault root.
 - If hooks ask whether a result should be persisted, ask the user once, then either write it or drop it.
-- If the user already confirmed a vault update in the current turn, proceed with the write without asking again.
+- If the user already confirmed a vault update in the current session, proceed with the write without asking again.
 
 ## If vault-ai is unavailable
 - Confirm `__VAULT_AI_LAUNCHER__` exists and is executable.

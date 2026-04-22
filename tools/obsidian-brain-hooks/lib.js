@@ -5,6 +5,7 @@ import path from 'node:path';
 const DEFAULT_CONFIRM_TTL_MS = 20 * 60 * 1000;
 const DEFAULT_PERSIST_COOLDOWN_MS = 2 * 60 * 1000;
 const DEFAULT_WRITE_ALLOWANCE = 3;
+const SESSION_WRITE_POLICY = 'explicit-user-save-intent';
 
 const SAVE_INTENT_PATTERNS = [
   /\b(save|persist|record|remember|store|update)\b.{0,40}\b(vault|obsidian|memory|brain|note|notes)\b/i,
@@ -112,6 +113,17 @@ function clearExpiredState(state, now) {
   if (next.recentlyPersistedAt && now - next.recentlyPersistedAt > DEFAULT_PERSIST_COOLDOWN_MS) {
     delete next.recentlyPersistedAt;
   }
+  return next;
+}
+
+function clearSessionTransientState(state) {
+  const next = { ...state };
+  delete next.pendingConfirmation;
+  delete next.confirmedUntil;
+  delete next.allowedVaultWrites;
+  delete next.recentlyPersistedAt;
+  delete next.explicitSaveRequested;
+  delete next.sessionWritePolicy;
   return next;
 }
 
@@ -227,6 +239,10 @@ function isConfirmed(state, now) {
   );
 }
 
+function isSessionWriteAllowed(state) {
+  return Boolean(state.explicitSaveRequested && state.sessionWritePolicy === SESSION_WRITE_POLICY);
+}
+
 function isVaultWriteCommand(command) {
   return OBSIDIAN_WRITE_COMMAND.test(command);
 }
@@ -253,7 +269,7 @@ function rejectionContext() {
 }
 
 function explicitSaveContext() {
-  return 'The user explicitly asked to save or update memory in the Obsidian vault. You may write to the vault in this turn.';
+  return 'The user explicitly asked to save or update memory in the Obsidian vault in this session. You may write to the vault without asking again for each write.';
 }
 
 function memoryReflectionContext() {
@@ -291,6 +307,9 @@ export function evaluateHook({ platform, event, input, vaultName, vaultRoot }) {
   let result = { type: 'noop' };
 
   if (normalizedEvent === 'sessionstart' || normalizedEvent === 'agentspawn') {
+    if (normalizedEvent === 'sessionstart') {
+      state = clearSessionTransientState(state);
+    }
     result = { type: 'context', additionalContext: basePolicyContext(vaultName, vaultRoot) };
   }
 
@@ -306,10 +325,12 @@ export function evaluateHook({ platform, event, input, vaultName, vaultRoot }) {
         delete state.pendingConfirmation;
         delete state.confirmedUntil;
         delete state.allowedVaultWrites;
+        delete state.explicitSaveRequested;
+        delete state.sessionWritePolicy;
         result = { type: 'context', additionalContext: rejectionContext() };
       } else if (isSaveIntent(prompt)) {
-        state.confirmedUntil = now + DEFAULT_CONFIRM_TTL_MS;
-        state.allowedVaultWrites = DEFAULT_WRITE_ALLOWANCE;
+        state.explicitSaveRequested = true;
+        state.sessionWritePolicy = SESSION_WRITE_POLICY;
         result = { type: 'context', additionalContext: explicitSaveContext() };
       } else if (isMemoryReflectionPrompt(prompt)) {
         result = { type: 'context', additionalContext: memoryReflectionContext() };
@@ -321,7 +342,12 @@ export function evaluateHook({ platform, event, input, vaultName, vaultRoot }) {
     const toolName = normalizeToolName(input);
     const toolInput = normalizeToolInput(input);
     const command = normalizeCommand(toolName, toolInput);
-    if (command && isVaultWriteCommand(command) && !isConfirmed(state, now)) {
+    if (
+      command &&
+      isVaultWriteCommand(command) &&
+      !isSessionWriteAllowed(state) &&
+      !isConfirmed(state, now)
+    ) {
       state.pendingConfirmation = true;
       result = { type: 'block', reason: writeBlockedReason() };
     }
@@ -333,10 +359,10 @@ export function evaluateHook({ platform, event, input, vaultName, vaultRoot }) {
     const command = normalizeCommand(toolName, toolInput);
     if (command && isVaultWriteCommand(command)) {
       delete state.pendingConfirmation;
-      if (Number(state.allowedVaultWrites || 0) > 0) {
+      if (!isSessionWriteAllowed(state) && Number(state.allowedVaultWrites || 0) > 0) {
         state.allowedVaultWrites -= 1;
       }
-      if (Number(state.allowedVaultWrites || 0) <= 0) {
+      if (!isSessionWriteAllowed(state) && Number(state.allowedVaultWrites || 0) <= 0) {
         delete state.allowedVaultWrites;
         delete state.confirmedUntil;
       }
@@ -352,6 +378,7 @@ export function evaluateHook({ platform, event, input, vaultName, vaultRoot }) {
       shouldUseStopPrompt(platform) &&
       !stopActive &&
       !state.pendingConfirmation &&
+      !isSessionWriteAllowed(state) &&
       !isRecentPersistence(state, now) &&
       shouldAskToPersist
     ) {
@@ -365,6 +392,7 @@ export function evaluateHook({ platform, event, input, vaultName, vaultRoot }) {
     event: normalizedEvent,
     resultType: result.type,
     pendingConfirmation: Boolean(state.pendingConfirmation),
+    explicitSaveRequested: Boolean(state.explicitSaveRequested),
     allowedVaultWrites: Number(state.allowedVaultWrites || 0),
     confirmedUntil: state.confirmedUntil || null,
   });

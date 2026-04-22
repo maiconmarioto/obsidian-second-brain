@@ -16,6 +16,7 @@ import { lintFrontmatter } from './lib/frontmatter-lint.js';
 import { runHealthChecks } from './lib/health.js';
 import { buildIndex, ensureFreshIndex } from './lib/indexer.js';
 import { buildPack } from './lib/packs.js';
+import { scaffoldProject } from './lib/project-init.js';
 import { searchVault } from './lib/search.js';
 
 function parseArgs(argv) {
@@ -51,6 +52,7 @@ function printHelp() {
       '  benchmark [--json]',
       '  lint-frontmatter [--json]',
       '  pack-build <pack-id> [--project slug] [--budget LEVEL] [--compact] [--max-notes N] [--chars-per-note N] [--json]',
+      '  project-init <slug> [--title TITLE] [--owner OWNER] [--status STATUS] [--force] [--dry-run] [--json]',
       '  health [--json]',
       '',
     ].join('\n'),
@@ -142,6 +144,21 @@ async function main() {
         charsPerNote: flags['chars-per-note']
           ? Number(flags['chars-per-note'])
           : undefined,
+      });
+      break;
+    }
+    case 'project-init': {
+      const slug = positionals[0];
+      if (!slug) {
+        throw new Error('project-init requires a project slug');
+      }
+      output = await scaffoldProject(paths, {
+        slug,
+        title: flags.title,
+        owner: flags.owner,
+        status: flags.status,
+        force: Boolean(flags.force),
+        dryRun: Boolean(flags['dry-run']),
       });
       break;
     }

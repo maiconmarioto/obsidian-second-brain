@@ -10,6 +10,7 @@
     "vault-ai:benchmark": "node tools/vault-ai/cli.js benchmark",
     "vault-ai:lint": "node tools/vault-ai/cli.js lint-frontmatter",
     "vault-ai:pack": "node tools/vault-ai/cli.js pack-build",
+    "vault-ai:project-init": "node tools/vault-ai/cli.js project-init",
     "vault-ai:health": "node tools/vault-ai/cli.js health"
   },
   "dependencies": {

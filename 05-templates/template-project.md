@@ -26,6 +26,10 @@ tags:
 - [[context]]
 - [[tasks]]
 
+## Bootstrap
+Preferred command:
+`vault-ai project-init '{{project-name}}' --title '{{title}}'`
+
 ## Suggested structure
 ```text
 {{project-name}}/

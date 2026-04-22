@@ -49,6 +49,7 @@ The skill standardizes how agents should behave:
 - target the vault explicitly instead of depending on `cwd`
 - distinguish canonical notes from volatile session state
 - request confirmation before writing new durable memory when the user did not ask for it explicitly
+- allow repeated writes in the same session after the user explicitly asked to save to the vault
 
 ### Retrieval and Context Assembly
 The local toolkit under `tools/vault-ai/` provides:
@@ -79,6 +80,16 @@ The canonical installer is:
 - Obsidian CLI installed and configured
 - Node.js and npm
 
+### Minimal Preflight
+Before trusting the skill on a new machine or shell, verify:
+
+```bash
+obsidian version
+obsidian read "vault=obsidian-second-brain" "path=INDEX.md"
+```
+
+If the read fails, stop early. Usual causes: Obsidian app not running, CLI not registered, or wrong vault name.
+
 ### Standard Install
 Run from the repository root:
 
@@ -102,6 +113,28 @@ Use a dry run to validate the setup path and generated actions before writing an
 
 ```bash
 ./06-ops/install-obsidian-brain-skill.sh --dry-run
+```
+
+## Robust CLI Examples
+Prefer direct shell quoting instead of helper wrappers or output compressors:
+
+```bash
+./06-ops/install-obsidian-brain-skill.sh \
+  --vault-name 'obsidian-second-brain' \
+  --vault-root '/absolute/path/to/obsidian-second-brain' \
+  --agents 'claude,codex,opencode,kiro' \
+  --non-interactive
+
+node tools/vault-ai/cli.js search --compact -- 'payments retry policy'
+node tools/vault-ai/cli.js pack-build 'project-working-set' --project 'coziva' --budget medium
+obsidian read "vault=obsidian-second-brain" "path=01-projects/coziva/index.md"
+obsidian append "vault=obsidian-second-brain" "path=01-projects/coziva/tasks.md" "content=- [ ] Next step"
+```
+
+For new project bootstrap:
+
+```bash
+node tools/vault-ai/cli.js project-init 'my-project' --title 'My Project'
 ```
 
 ## What the Installer Provisions

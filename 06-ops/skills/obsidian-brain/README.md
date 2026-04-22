@@ -20,6 +20,8 @@ Cross-agent memory layer for Claude Code, Codex, OpenCode, and Kiro.
 - Explicit vault targeting outside the vault
 - Filesystem only as fallback
 - hook-assisted memory confirmation before durable writes
+- session-wide write allowance after explicit user save intent
+- early preflight with `obsidian version` plus a cheap read check
 
 ## Install
 Run:
@@ -40,6 +42,17 @@ Run:
 - Install hook integrations for Claude Code, Codex, and OpenCode
 - Render and install the `obsidian-brain` custom agent for Kiro
 - Symlink the rendered skill into the selected agent directories when the platform uses skill directories
+
+## Operational examples
+Use robust shell quoting directly:
+
+```bash
+vault-ai search --compact -- 'payments retry policy'
+vault-ai pack-build 'project-working-set' --project 'coziva' --budget medium
+vault-ai project-init 'my-project' --title 'My Project'
+obsidian read "vault=obsidian-second-brain" "path=INDEX.md"
+obsidian append "vault=obsidian-second-brain" "path=01-projects/my-project/tasks.md" "content=- [ ] Next step"
+```
 
 ## Hook model by platform
 - Claude Code uses `~/.claude/settings.json`

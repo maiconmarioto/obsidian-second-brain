@@ -16,4 +16,5 @@ Small cross-agent hook engine for vault persistence hygiene.
 ## Current heuristic
 - durable-memory prompting is intentionally conservative
 - explicit user save intent overrides the extra confirmation prompt
+- explicit user save intent unlocks repeated vault writes for the current session
 - recent successful vault writes suppress repeated prompts for a short cooldown window
